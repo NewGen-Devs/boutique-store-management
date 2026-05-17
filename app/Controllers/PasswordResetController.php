@@ -68,7 +68,6 @@ class PasswordResetController extends Controller
                 'success' => true,
                 'message' => 'If an account exists with that email, a reset link will be sent.'
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Password reset error: " . $e->getMessage());
             $this->jsonError('Error processing request', 500);
@@ -126,7 +125,6 @@ class PasswordResetController extends Controller
                 'success' => true,
                 'message' => 'Password reset successfully. You can now login.'
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Password reset error: " . $e->getMessage());
             $this->jsonError('Error resetting password', 500);
@@ -177,7 +175,6 @@ class PasswordResetController extends Controller
                 'message' => 'Token is valid',
                 'email' => $user->email
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Token verification error: " . $e->getMessage());
             $this->jsonError('Error verifying token', 500);

@@ -159,7 +159,10 @@
         <section id="view-inventory" class="view-section">
           <div class="page-header d-flex justify-between align-center">
             <h1 class="page-title">Inventory</h1>
-            <button class="btn btn-primary" id="addItemBtn" style="display:none">Add Item</button>
+            <div class="d-flex gap-sm">
+              <button class="btn btn-outline" onclick="exportCsv('inventory')">Export CSV</button>
+              <button class="btn btn-primary" id="addItemBtn" style="display:none">Add Item</button>
+            </div>
           </div>
           <div class="data-panel">
             <div class="table-wrapper">
@@ -306,6 +309,11 @@
         <section id="view-reports" class="view-section">
           <div class="page-header d-flex justify-between align-center">
             <h1 class="page-title">Analytics & Reports</h1>
+            <div class="d-flex gap-sm">
+              <button class="btn btn-outline" onclick="exportCsv('sales')">Export Sales CSV</button>
+              <button class="btn btn-outline" onclick="exportPdf('sales')">Export Sales PDF</button>
+              <button class="btn btn-outline" onclick="exportCsv('logs')">Export Logs CSV</button>
+            </div>
           </div>
 
           <!-- Filters -->

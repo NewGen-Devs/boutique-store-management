@@ -100,7 +100,6 @@ class UserController extends Controller
                 'user' => $user->toApiResponse(),
                 'csrf_token' => $csrfToken
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Login error: " . $e->getMessage());
             $this->jsonError('Authentication error. Please try again.', 500);
@@ -165,7 +164,6 @@ class UserController extends Controller
                 'success' => true,
                 'message' => 'Logout successful'
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Logout error: " . $e->getMessage());
             $this->jsonError('Logout failed', 500);
@@ -208,7 +206,6 @@ class UserController extends Controller
                 'success' => true,
                 'user' => $user->toApiResponse()
             ]);
-
         } catch (\Exception $e) {
             logger()->error("Get user error: " . $e->getMessage());
             $this->jsonError('Error retrieving user data', 500);

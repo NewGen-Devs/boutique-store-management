@@ -111,6 +111,16 @@ return function (Router $router) {
     $router->get('/api/charts/category-performance', 'Api\ChartController@getCategoryPerformance', 'api.charts.category-performance');
 
     // ============================================
+    // API ROUTES - EXPORTS
+    // ============================================
+    $router->get('/api/export/csv/sales', 'Api\ExportController@exportSalesCsv', 'api.export.csv.sales');
+    $router->get('/api/export/csv/inventory', 'Api\ExportController@exportInventoryCsv', 'api.export.csv.inventory');
+    $router->get('/api/export/csv/activity-logs', 'Api\ExportController@exportActivityLogsCsv', 'api.export.csv.logs');
+    $router->get('/api/export/pdf/sales', 'Api\ExportController@exportSalesPdf', 'api.export.pdf.sales');
+    $router->get('/api/export/pdf/receipts/{id}', 'Api\ExportController@exportReceiptPdf', 'api.export.pdf.receipt');
+    $router->get('/api/export/pdf/custom', 'Api\ExportController@exportCustomReportPdf', 'api.export.pdf.custom');
+
+    // ============================================
     // API ROUTES - DASHBOARD ANALYTICS
     // ============================================
     $router->get('/api/dashboard/manager', 'Api\DashboardController@manager', 'api.dashboard.manager');

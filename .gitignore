@@ -43,3 +43,6 @@ docs/
 *.tmp
 *.bak
 *.backup
+
+# PHP CS Fixer
+.php-cs-fixer.cache

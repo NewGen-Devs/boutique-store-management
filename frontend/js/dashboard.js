@@ -1195,3 +1195,37 @@ function setupMobileMenu() {
   openBtn.onclick = () => sidebar.classList.add('open');
   closeBtn.onclick = () => sidebar.classList.remove('open');
 }
+
+// ===================================
+// EXPORT HANDLERS (Phase 4.4)
+// ===================================
+
+window.exportCsv = function (type) {
+  let url = '';
+  if (type === 'sales') {
+    const start = document.getElementById('reportStartDate')?.value || '';
+    const end = document.getElementById('reportEndDate')?.value || '';
+    url = `/api/export/csv/sales?start_date=${start}&end_date=${end}`;
+  } else if (type === 'inventory') {
+    url = '/api/export/csv/inventory';
+  } else if (type === 'logs') {
+    url = '/api/export/csv/activity-logs';
+  }
+
+  if (url) window.open(url, '_blank');
+};
+
+window.exportPdf = function (type, id = null) {
+  let url = '';
+  if (type === 'receipt' && id) {
+    url = `/api/export/pdf/receipts/${id}`;
+  } else if (type === 'sales') {
+    const start = document.getElementById('reportStartDate')?.value || '';
+    const end = document.getElementById('reportEndDate')?.value || '';
+    url = `/api/export/pdf/sales?start_date=${start}&end_date=${end}`;
+  } else if (type === 'custom') {
+    url = '/api/export/pdf/custom?type=custom';
+  }
+
+  if (url) window.open(url, '_blank');
+};

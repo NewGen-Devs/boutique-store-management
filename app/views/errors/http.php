@@ -124,14 +124,14 @@ echo $icon;
         
         <h1 class="error-title">
             <?php
-echo match ($code ?? 500) {
-    404 => 'Page Not Found',
-    403 => 'Access Forbidden',
-    401 => 'Unauthorized',
-    500 => 'Internal Server Error',
-    503 => 'Service Unavailable',
-    default => 'Error'
-};
+            echo match ($code ?? 500) {
+                404 => 'Page Not Found',
+                403 => 'Access Forbidden',
+                401 => 'Unauthorized',
+                500 => 'Internal Server Error',
+                503 => 'Service Unavailable',
+                default => 'Error'
+            };
 ?>
         </h1>
         
