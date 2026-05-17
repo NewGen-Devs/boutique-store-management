@@ -95,6 +95,22 @@ return function (Router $router) {
     $router->delete('/api/branches/{id}', 'Api\BranchController@deleteBranch', 'api.branches.delete');
 
     // ============================================
+    // API ROUTES - REPORTS & ANALYTICS
+    // ============================================
+    $router->get('/api/reports/sales/summary', 'Api\ReportController@getSalesSummary', 'api.reports.sales.summary');
+    $router->get('/api/reports/sales/branch', 'Api\ReportController@getSalesByBranch', 'api.reports.sales.branch');
+    $router->get('/api/reports/sales/seller', 'Api\ReportController@getSalesBySeller', 'api.reports.sales.seller');
+    $router->get('/api/reports/inventory/valuation', 'Api\ReportController@getInventoryValuation', 'api.reports.inventory.valuation');
+    $router->get('/api/reports/inventory/low-stock', 'Api\ReportController@getLowStockReport', 'api.reports.inventory.low_stock');
+
+    // ============================================
+    // API ROUTES - DASHBOARD ANALYTICS
+    // ============================================
+    $router->get('/api/dashboard/manager', 'Api\DashboardController@manager', 'api.dashboard.manager');
+    $router->get('/api/dashboard/storekeeper', 'Api\DashboardController@storekeeper', 'api.dashboard.storekeeper');
+    $router->get('/api/dashboard/seller', 'Api\DashboardController@seller', 'api.dashboard.seller');
+
+    // ============================================
     // API ROUTES (Optional - JSON responses) - DISABLED
     // ============================================
     /*

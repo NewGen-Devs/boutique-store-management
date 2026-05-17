@@ -283,22 +283,86 @@ function createItem() {
 }
 
 // ——— Sales ———
-function renderRecentSales() {
+async function renderRecentSales() {
+  const result = await DashboardAPI.getManagerDashboard();
+  if (!result?.success) {
+    console.warn('Failed to load manager dashboard:', result?.message);
+    return;
+  }
+
+  const d = result.data;
+  const kpis = d.kpis;
+
+  // KPI Widgets
+  const fmtCur = (v) => '$' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  document.getElementById('ovTodayRevenue').textContent = fmtCur(kpis.today_revenue);
+  document.getElementById('ovMonthRevenue').textContent = fmtCur(kpis.month_revenue);
+  document.getElementById('ovTotalProducts').textContent = parseInt(kpis.total_products || 0).toLocaleString();
+  document.getElementById('ovActiveBranches').textContent = kpis.active_branches || 0;
+  document.getElementById('ovActiveUsers').textContent = kpis.active_users || 0;
+  document.getElementById('ovTodayTxns').textContent = kpis.today_transactions || 0;
+
+  // Top Sellers
+  const sellerBody = document.querySelector('#ovTopSellersTable tbody');
+  if (d.top_sellers && d.top_sellers.length > 0) {
+    sellerBody.innerHTML = d.top_sellers.map(s => `
+      <tr>
+        <td>${s.first_name} ${s.last_name}</td>
+        <td>${s.sale_count}</td>
+        <td>${fmtCur(s.total_revenue)}</td>
+      </tr>
+    `).join('');
+  } else {
+    sellerBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No sales this month</td></tr>';
+  }
+
+  // Branch Revenue
+  const branchBody = document.querySelector('#ovBranchRevenueTable tbody');
+  if (d.branch_revenue && d.branch_revenue.length > 0) {
+    branchBody.innerHTML = d.branch_revenue.map(b => `
+      <tr>
+        <td>${b.branch_name}</td>
+        <td>${b.transactions}</td>
+        <td>${fmtCur(b.revenue)}</td>
+      </tr>
+    `).join('');
+  } else {
+    branchBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No branch data</td></tr>';
+  }
+
+  // Low Stock Alerts
+  const lowStockContainer = document.getElementById('ovLowStockContainer');
+  if (d.low_stock_alerts && d.low_stock_alerts.length > 0) {
+    lowStockContainer.innerHTML = d.low_stock_alerts.map(item => `
+      <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;color:var(--warning)">${item.name} <span style="font-weight:400;color:var(--text-secondary)">(${item.sku})</span></span>
+        <span style="font-size:0.8rem">Stock: <strong>${item.current_stock}</strong> / Min: ${item.reorder_level}</span>
+      </div>
+    `).join('');
+  } else {
+    lowStockContainer.innerHTML = '<p style="color:var(--success);font-size:0.85rem">✓ All items are well-stocked!</p>';
+  }
+
+  // Recent Transactions
   const tbody = document.querySelector('#recentSalesTable tbody');
   if (!tbody) return;
-  tbody.innerHTML = '';
-
-  window.MOCK_DATA.recentSales.forEach(sale => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-secondary)">${sale.date}</td>
-      <td>${sale.id}</td>
-      <td>${sale.seller}</td>
-      <td>${sale.branch}</td>
-      <td style="font-weight:700">$${sale.total.toFixed(2)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  if (d.recent_transactions && d.recent_transactions.length > 0) {
+    tbody.innerHTML = d.recent_transactions.map(sale => {
+      const date = new Date(sale.created_at).toLocaleDateString();
+      return `
+        <tr>
+          <td style="color:var(--text-secondary)">${date}</td>
+          <td>${sale.transaction_number}</td>
+          <td>${sale.seller_first || ''} ${sale.seller_last || ''}</td>
+          <td>${sale.branch_name || '—'}</td>
+          <td style="font-weight:700">${fmtCur(sale.final_amount)}</td>
+        </tr>
+      `;
+    }).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No recent transactions</td></tr>';
+  }
 }
 
 // ——— POS ———
@@ -948,21 +1012,104 @@ async function deleteRole(roleId) {
 }
 
 // ——— Reports ———
-function generateReport(type) {
-  const log = document.getElementById('reportLog');
-  const title = document.getElementById('reportTitle');
 
-  if (type === 'daily') {
-    title.textContent = 'Daily Sales — ' + new Date().toLocaleDateString();
-    log.textContent = JSON.stringify(window.MOCK_DATA.recentSales.slice(0, 2), null, 2);
-  } else if (type === 'weekly') {
-    title.textContent = 'Weekly Revenue';
-    log.textContent = 'Downtown: $24,500\nUptown: $18,200\n\nTop Seller: Sarah Connor';
-  } else if (type === 'inventory') {
-    title.textContent = 'Inventory Snapshot';
-    const fast = window.MOCK_DATA.inventory.filter(i => i.stock < 10);
-    const slow = window.MOCK_DATA.inventory.filter(i => i.stock >= 10);
-    log.textContent = 'LOW STOCK:\n' + JSON.stringify(fast, null, 2) + '\n\nHEALTHY:\n' + JSON.stringify(slow, null, 2);
+function formatCurrency(val) {
+  const num = parseFloat(val) || 0;
+  return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function setReportRange(preset) {
+  const startEl = document.getElementById('reportStartDate');
+  const endEl = document.getElementById('reportEndDate');
+  const today = new Date();
+  endEl.value = today.toISOString().split('T')[0];
+
+  if (preset === 'today') {
+    startEl.value = endEl.value;
+  } else if (preset === 'week') {
+    const weekAgo = new Date(today);
+    weekAgo.setDate(today.getDate() - 7);
+    startEl.value = weekAgo.toISOString().split('T')[0];
+  } else if (preset === 'month') {
+    startEl.value = today.toISOString().slice(0, 8) + '01';
+  }
+
+  loadReports();
+}
+
+async function loadReports() {
+  const startDate = document.getElementById('reportStartDate')?.value || '';
+  const endDate = document.getElementById('reportEndDate')?.value || '';
+
+  // Run all report API calls in parallel
+  const [summaryRes, branchRes, sellerRes, valuationRes, lowStockRes] = await Promise.all([
+    ReportsAPI.getSalesSummary(startDate, endDate),
+    ReportsAPI.getSalesByBranch(startDate, endDate),
+    ReportsAPI.getSalesBySeller(startDate, endDate),
+    ReportsAPI.getInventoryValuation(),
+    ReportsAPI.getLowStock()
+  ]);
+
+  // KPI Cards
+  if (summaryRes?.success) {
+    const d = summaryRes.data;
+    document.getElementById('kpiRevenue').textContent = formatCurrency(d.revenue);
+    document.getElementById('kpiTransactions').textContent = parseInt(d.total_transactions || 0).toLocaleString();
+    document.getElementById('kpiItemsSold').textContent = parseInt(d.total_items_sold || 0).toLocaleString();
+    document.getElementById('kpiProfit').textContent = formatCurrency(d.profit);
+  }
+
+  // Branch Table
+  const branchBody = document.querySelector('#reportBranchTable tbody');
+  if (branchRes?.success && branchRes.data.length > 0) {
+    branchBody.innerHTML = branchRes.data.map(b => `
+      <tr>
+        <td>${b.branch_name || '—'}</td>
+        <td>${parseInt(b.transactions || 0).toLocaleString()}</td>
+        <td>${formatCurrency(b.revenue)}</td>
+      </tr>
+    `).join('');
+  } else {
+    branchBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No branch data available for this period</td></tr>';
+  }
+
+  // Seller Table
+  const sellerBody = document.querySelector('#reportSellerTable tbody');
+  if (sellerRes?.success && sellerRes.data.length > 0) {
+    sellerBody.innerHTML = sellerRes.data.map(s => `
+      <tr>
+        <td>${s.first_name} ${s.last_name}</td>
+        <td>${parseInt(s.total_sales || 0).toLocaleString()}</td>
+        <td>${formatCurrency(s.revenue)}</td>
+      </tr>
+    `).join('');
+  } else {
+    sellerBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No seller data available for this period</td></tr>';
+  }
+
+  // Inventory Valuation Cards
+  if (valuationRes?.success) {
+    const v = valuationRes.data;
+    document.getElementById('invTotalItems').textContent = parseInt(v.total_products || 0).toLocaleString();
+    document.getElementById('invCostValue').textContent = formatCurrency(v.total_cost_value);
+    document.getElementById('invRetailValue').textContent = formatCurrency(v.total_retail_value);
+    document.getElementById('invPotentialProfit').textContent = formatCurrency(v.potential_profit);
+  }
+
+  // Low Stock Table
+  const lowStockBody = document.querySelector('#reportLowStockTable tbody');
+  if (lowStockRes?.success && lowStockRes.data.length > 0) {
+    lowStockBody.innerHTML = lowStockRes.data.map(item => `
+      <tr style="color:var(--warning)">
+        <td>${item.sku || '—'}</td>
+        <td>${item.name}</td>
+        <td>${item.category_name || '—'}</td>
+        <td><strong>${item.quantity}</strong></td>
+        <td>${item.reorder_level || '—'}</td>
+      </tr>
+    `).join('');
+  } else {
+    lowStockBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--success)">All items are well-stocked!</td></tr>';
   }
 }
 

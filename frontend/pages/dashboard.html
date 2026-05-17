@@ -55,22 +55,88 @@
         <section id="view-overview" class="view-section">
           <div class="page-header">
             <h1 class="page-title">Overview</h1>
-            <p style="color:var(--text-secondary);font-size:0.875rem">Current operational metrics for your branch.</p>
+            <p style="color:var(--text-secondary);font-size:0.875rem">Live operational metrics from your database.</p>
           </div>
-          <div class="widget-grid">
+
+          <!-- KPI Widgets -->
+          <div class="widget-grid" id="overviewWidgets">
             <div class="widget">
               <div class="widget-title">Today's Revenue</div>
-              <div class="widget-value">$1,245</div>
+              <div class="widget-value" id="ovTodayRevenue">—</div>
             </div>
             <div class="widget">
-              <div class="widget-title">Active Inventory</div>
-              <div class="widget-value">2,340</div>
+              <div class="widget-title">Month Revenue</div>
+              <div class="widget-value" id="ovMonthRevenue">—</div>
             </div>
             <div class="widget">
-              <div class="widget-title">Store Operations</div>
-              <div class="widget-value">2 Active</div>
+              <div class="widget-title">Active Products</div>
+              <div class="widget-value" id="ovTotalProducts">—</div>
+            </div>
+            <div class="widget">
+              <div class="widget-title">Active Branches</div>
+              <div class="widget-value" id="ovActiveBranches">—</div>
+            </div>
+            <div class="widget">
+              <div class="widget-title">Active Users</div>
+              <div class="widget-value" id="ovActiveUsers">—</div>
+            </div>
+            <div class="widget">
+              <div class="widget-title">Today's Transactions</div>
+              <div class="widget-value" id="ovTodayTxns">—</div>
             </div>
           </div>
+
+          <!-- Top Sellers & Branch Revenue side by side -->
+          <div class="d-flex gap-md" style="margin-bottom:var(--space-lg);flex-wrap:wrap">
+            <div class="data-panel" style="flex:1;min-width:300px">
+              <h3 style="margin-bottom:var(--space-md);font-size:0.875rem;font-weight:600">Top Sellers (This Month)</h3>
+              <div class="table-wrapper">
+                <table id="ovTopSellersTable">
+                  <thead>
+                    <tr>
+                      <th>Seller</th>
+                      <th>Sales</th>
+                      <th>Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="3" style="text-align:center;color:var(--text-muted)">Loading…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:300px">
+              <h3 style="margin-bottom:var(--space-md);font-size:0.875rem;font-weight:600">Revenue by Branch</h3>
+              <div class="table-wrapper">
+                <table id="ovBranchRevenueTable">
+                  <thead>
+                    <tr>
+                      <th>Branch</th>
+                      <th>Transactions</th>
+                      <th>Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colspan="3" style="text-align:center;color:var(--text-muted)">Loading…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Low Stock Alerts -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <h3 style="margin-bottom:var(--space-md);font-size:0.875rem;font-weight:600">⚠️ Low Stock Alerts</h3>
+            <div id="ovLowStockContainer">
+              <p style="color:var(--text-muted);font-size:0.8rem">Loading…</p>
+            </div>
+          </div>
+
+          <!-- Recent Transactions -->
           <div class="data-panel">
             <h3 style="margin-bottom:var(--space-lg);font-size:0.875rem;font-weight:600">Recent Transactions</h3>
             <div class="table-wrapper">
@@ -238,18 +304,143 @@
         </section>
         <!-- REPORTS -->
         <section id="view-reports" class="view-section">
-          <div class="page-header">
-            <h1 class="page-title">Analytics</h1>
+          <div class="page-header d-flex justify-between align-center">
+            <h1 class="page-title">Analytics & Reports</h1>
           </div>
-          <div class="d-flex gap-md" style="margin-bottom:var(--space-lg);flex-wrap:wrap">
-            <button class="btn btn-outline" onclick="generateReport('daily')">Daily Sales</button>
-            <button class="btn btn-outline" onclick="generateReport('weekly')">Weekly Sales</button>
-            <button class="btn btn-outline" onclick="generateReport('inventory')">Inventory Snapshot</button>
+
+          <!-- Filters -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <div class="d-flex gap-md" style="flex-wrap:wrap;align-items:flex-end">
+              <div>
+                <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">Start Date</label>
+                <input type="date" id="reportStartDate" class="form-control" style="min-width:160px">
+              </div>
+              <div>
+                <label style="font-size:0.75rem;font-weight:600;display:block;margin-bottom:4px">End Date</label>
+                <input type="date" id="reportEndDate" class="form-control" style="min-width:160px">
+              </div>
+              <button class="btn btn-primary" onclick="loadReports()">Generate Report</button>
+              <div class="d-flex gap-sm" style="margin-left:auto">
+                <button class="btn btn-outline" onclick="setReportRange('today')">Today</button>
+                <button class="btn btn-outline" onclick="setReportRange('week')">This Week</button>
+                <button class="btn btn-outline" onclick="setReportRange('month')">This Month</button>
+              </div>
+            </div>
           </div>
-          <div class="data-panel">
-            <h3 id="reportTitle" style="margin-bottom:1rem;font-size:0.875rem;font-weight:600">Report Output</h3>
-            <pre id="reportLog"
-              style="background:var(--bg-secondary);padding:1rem;font-size:0.8rem;overflow-x:auto;color:var(--text-secondary);border-radius:var(--radius-md)"></pre>
+
+          <!-- KPI Cards -->
+          <div class="d-flex gap-md" style="margin-bottom:var(--space-lg);flex-wrap:wrap" id="reportKpiCards">
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Total Revenue</p>
+              <h2 id="kpiRevenue" style="font-size:1.5rem;font-weight:700">—</h2>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Transactions</p>
+              <h2 id="kpiTransactions" style="font-size:1.5rem;font-weight:700">—</h2>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Items Sold</p>
+              <h2 id="kpiItemsSold" style="font-size:1.5rem;font-weight:700">—</h2>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Profit</p>
+              <h2 id="kpiProfit" style="font-size:1.5rem;font-weight:700;color:var(--success)">—</h2>
+            </div>
+          </div>
+
+          <!-- Branch Performance Table -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Sales by Branch</h3>
+            <div class="table-wrapper">
+              <table id="reportBranchTable">
+                <thead>
+                  <tr>
+                    <th>Branch</th>
+                    <th>Transactions</th>
+                    <th>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="3" style="text-align:center;color:var(--text-muted)">Click "Generate Report" to load
+                      data</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Top Sellers Table -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Top Sellers</h3>
+            <div class="table-wrapper">
+              <table id="reportSellerTable">
+                <thead>
+                  <tr>
+                    <th>Seller</th>
+                    <th>Sales Count</th>
+                    <th>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="3" style="text-align:center;color:var(--text-muted)">Click "Generate Report" to load
+                      data</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Inventory Valuation -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Inventory Valuation</h3>
+            <div class="d-flex gap-md" style="flex-wrap:wrap" id="inventoryValCards">
+              <div
+                style="flex:1;min-width:150px;padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md);text-align:center">
+                <p style="font-size:0.7rem;color:var(--text-secondary)">Total Items</p>
+                <strong id="invTotalItems">—</strong>
+              </div>
+              <div
+                style="flex:1;min-width:150px;padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md);text-align:center">
+                <p style="font-size:0.7rem;color:var(--text-secondary)">Cost Value</p>
+                <strong id="invCostValue">—</strong>
+              </div>
+              <div
+                style="flex:1;min-width:150px;padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md);text-align:center">
+                <p style="font-size:0.7rem;color:var(--text-secondary)">Retail Value</p>
+                <strong id="invRetailValue">—</strong>
+              </div>
+              <div
+                style="flex:1;min-width:150px;padding:0.75rem;background:var(--bg-secondary);border-radius:var(--radius-md);text-align:center">
+                <p style="font-size:0.7rem;color:var(--text-secondary)">Potential Profit</p>
+                <strong id="invPotentialProfit" style="color:var(--success)">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Low Stock Alert Table -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg)">
+            <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Low Stock Alerts</h3>
+            <div class="table-wrapper">
+              <table id="reportLowStockTable">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Current Stock</th>
+                    <th>Min Level</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted)">Click "Generate Report" to load
+                      data</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
         <!-- STOCK ALERTS -->
@@ -615,6 +806,8 @@
   <script src="/js/api.js"></script>
   <script src="/js/api-users.js"></script>
   <script src="/js/api-roles.js"></script>
+  <script src="/js/api-reports.js"></script>
+  <script src="/js/api-dashboard.js"></script>
   <script src="/js/dashboard.js"></script>
   <script src="/js/products.js"></script>
 </body>

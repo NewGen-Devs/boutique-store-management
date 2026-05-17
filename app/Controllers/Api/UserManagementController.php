@@ -474,8 +474,8 @@ class UserManagementController extends Controller
             $errors['email'] = 'Valid email is required';
         }
 
-        if (!isset($data['password']) || strlen($data['password']) < 6) {
-            $errors['password'] = 'Password must be at least 6 characters';
+        if (!isset($data['password']) || strlen($data['password']) < 8) {
+            $errors['password'] = 'Password must be at least 8 characters';
         }
 
         if (empty($data['first_name'])) {
