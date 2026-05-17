@@ -18,6 +18,8 @@ return function (Router $router) {
     // AUTH ROUTES (Public)
     // ============================================
     $router->get('/', 'AuthController@showHome', 'home');
+    $router->get('/about', 'AuthController@showAbout', 'about');
+    $router->get('/contact', 'AuthController@showContact', 'contact');
     $router->get('/login', 'AuthController@showLogin', 'login');
     $router->post('/login', 'AuthController@login', 'login.store');
     $router->post('/logout', 'AuthController@logout', 'logout');

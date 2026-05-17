@@ -9,6 +9,7 @@ A comprehensive web-based management system for boutique stores, designed to man
 ##  Features
 
 ### Core Functionality
+- **Modern Dynamic UI**: Professional design system featuring glassmorphism, refined typography, and smooth micro-animations.
 - **Inventory Management**: Track items, stock levels, and pricing across multiple branches
 - **Sales Processing**: Record sales transactions with real-time inventory updates
 - **Multi-Branch Support**: Manage multiple boutique locations from a single dashboard
@@ -38,28 +39,16 @@ git clone https://github.com/your-org/boutique-store-management.git
 cd boutique-store-management
 ```
 
-### 2. Environment Configuration
+### 2. Automated Setup & Start
+Run the provided development server script. This script will automatically run `composer install`, set up your `.env` file, create and seed the database, and start the development server at `http://localhost:8000`.
+
 ```bash
-cp .env.example .env
-# Edit .env with your database credentials
+chmod +x serve.sh
+./serve.sh
 ```
 
-### 3. Database Setup
-```bash
-mysql -u root -p < database/store.sql
-```
-
-### 4. Configure Web Server
-See [DEVELOPER_README.md](docs/DEVELOPER_README.md) for detailed server configuration
-
-### 5. Start Application
-```bash
-# For Apache
-sudo service apache2 start
-
-# For Nginx
-sudo nginx
-```
+### 3. Manual Server Configuration (Optional)
+If you prefer not to use the automated `serve.sh` script, you can manually set up your `.env`, import `database/store.sql`, and configure Apache or Nginx. See [DEVELOPER_README.md](docs/DEVELOPER_README.md) for detailed manual server configuration.
 
 ##  Project Structure
 

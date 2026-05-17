@@ -41,6 +41,22 @@ class AuthController extends Controller
     }
 
     /**
+     * Show about page
+     */
+    public function showAbout()
+    {
+        include FRONTEND_PATH . '/pages/about.html';
+    }
+
+    /**
+     * Show contact page
+     */
+    public function showContact()
+    {
+        include FRONTEND_PATH . '/pages/contact.html';
+    }
+
+    /**
      * Show debug login page
      */
     public function showDebugLogin()

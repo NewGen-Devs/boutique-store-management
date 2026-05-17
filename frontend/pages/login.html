@@ -1,21 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — Boutique Store</title>
-  
+
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/auth.css">
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
-  
+
   <div class="auth-container">
-    <div class="auth-form">
+    <div class="auth-form glass-panel">
       <div style="text-align:center;margin-bottom:2.5rem">
-        <div class="logo" style="margin-bottom:0.5rem;font-size:1.5rem">
-          Boutique<span style="font-weight:300;margin-left:4px">Store</span>
+        <div class="logo-wrapper" style="margin-bottom:0.75rem;justify-content:center">
+          <div class="logo-mark">B</div>
+          <div class="logo-text">Boutique<span>Store</span></div>
         </div>
         <p style="color:var(--text-secondary);font-size:0.875rem">Sign in to your account</p>
       </div>
@@ -29,9 +32,11 @@
           <label class="form-label" for="loginPassword">Password</label>
           <input type="password" id="loginPassword" class="form-control" value="password123" required>
         </div>
-        <p id="errorMsg" style="color:var(--danger);font-size:0.8rem;display:none;margin-bottom:1rem;text-align:center">Invalid email or password.</p>
-        
-        <button type="submit" id="loginBtn" class="btn btn-primary" style="width:100%;padding:0.875rem;font-size:0.9rem;margin-top:0.5rem">Log in</button>
+        <p id="errorMsg" style="color:var(--danger);font-size:0.8rem;display:none;margin-bottom:1rem;text-align:center">
+          Invalid email or password.</p>
+
+        <button type="submit" id="loginBtn" class="btn btn-primary"
+          style="width:100%;padding:0.875rem;font-size:0.9rem;margin-top:0.5rem">Log in</button>
       </form>
 
       <div style="text-align:center;margin-top:2.5rem;border-top:1px solid var(--border);padding-top:1.5rem">
@@ -48,4 +53,5 @@
   <script src="/js/mockData.js"></script>
   <script src="/js/auth.js"></script>
 </body>
+
 </html>

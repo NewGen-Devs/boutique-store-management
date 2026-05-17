@@ -15,9 +15,11 @@
 }
 
 .landing-nav.scrolled {
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .landing-nav-links a {
@@ -26,6 +28,7 @@
   margin: 0 1.25rem;
   color: var(--text-primary);
 }
+
 .landing-nav-links a:hover {
   color: var(--text-secondary);
 }
@@ -38,7 +41,27 @@
   justify-content: center;
   position: relative;
   text-align: center;
-  background: var(--bg-primary);
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  background-image:
+    radial-gradient(circle at 50% 10%, rgba(250, 84, 0, 0.06) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none'/%3E%3Cpath d='M0 39.5h40v1H0zM39.5 0h1v40h-1z' fill='%23000' fill-opacity='.02'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 40px 40px;
+  background-position: center top, center;
+}
+
+.hero-glow-layer {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(250, 84, 0, 0.12) 0%, rgba(250, 84, 0, 0) 70%);
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+  filter: blur(50px);
 }
 
 .hero-content {
@@ -85,20 +108,27 @@
 }
 
 @media (max-width: 768px) {
-  .features-grid { grid-template-columns: 1fr; }
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Extra: Make hero, nav, and split-sections more responsive */
 @media (max-width: 768px) {
-  .hero-section, .split-section {
+
+  .hero-section,
+  .split-section {
     padding: var(--space-lg) 0;
     grid-template-columns: 1fr;
     gap: var(--space-md);
   }
-  .hero-content, .split-text {
+
+  .hero-content,
+  .split-text {
     text-align: center;
     padding: 0 var(--space-sm);
   }
+
   .img-card img {
     height: 180px;
     object-fit: cover;
@@ -106,15 +136,21 @@
 }
 
 @media (max-width: 600px) {
-  .site-footer, .stats-bar {
+
+  .site-footer,
+  .stats-bar {
     padding: var(--space-md) 0;
   }
-  .footer-grid, .stats-grid {
+
+  .footer-grid,
+  .stats-grid {
     gap: var(--space-sm);
   }
+
   .feature-card {
     padding: var(--space-md);
   }
+
   .img-card img {
     height: 120px;
   }
@@ -126,8 +162,11 @@
   background: var(--bg-secondary);
   transition: all var(--transition-normal);
 }
+
 .feature-card:hover {
   background: var(--bg-tertiary);
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-md);
 }
 
 .feature-card .icon-wrap {
@@ -164,7 +203,9 @@
 }
 
 @media (max-width: 992px) {
-  .split-section { grid-template-columns: 1fr; }
+  .split-section {
+    grid-template-columns: 1fr;
+  }
 }
 
 .split-text h2 {
@@ -211,7 +252,9 @@
 }
 
 @media (max-width: 768px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .stat-item h3 {
@@ -244,13 +287,21 @@
 }
 
 @media (max-width: 992px) {
-  .footer-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 768px) {
-  .footer-grid { grid-template-columns: 1fr; }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
-.footer-brand .logo { margin-bottom: 1rem; }
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.footer-brand .logo {
+  margin-bottom: 1rem;
+}
+
 .footer-brand p {
   color: var(--text-secondary);
   font-size: 0.875rem;
@@ -267,13 +318,21 @@
   color: var(--text-primary);
 }
 
-.footer-col ul { display: flex; flex-direction: column; gap: 0.6rem; }
+.footer-col ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .footer-col a {
   font-size: 0.875rem;
   color: var(--text-secondary);
   font-weight: 400;
 }
-.footer-col a:hover { color: var(--text-primary); }
+
+.footer-col a:hover {
+  color: var(--text-primary);
+}
 
 .footer-bottom {
   padding-top: var(--space-lg);
