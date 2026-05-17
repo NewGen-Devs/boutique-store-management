@@ -1111,6 +1111,11 @@ async function loadReports() {
   } else {
     lowStockBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--success)">All items are well-stocked!</td></tr>';
   }
+
+  // Render Charts concurrently
+  if (typeof renderDashboardCharts === 'function') {
+    renderDashboardCharts();
+  }
 }
 
 // ——— Stock Alerts ———

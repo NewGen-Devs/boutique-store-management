@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Router script for PHP built-in server
  * Usage: php -S localhost:8000 -t public public/router.php
@@ -10,7 +11,7 @@ $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 if (preg_match('/\.(css|js|png|jpg|jpeg|gif|svg|ico|json)$/', $uri)) {
     // Try to serve from frontend directory
     $frontendPath = dirname(__DIR__) . '/frontend' . $uri;
-    
+
     if (file_exists($frontendPath) && is_file($frontendPath)) {
         // Determine mime type
         $ext = strtolower(pathinfo($frontendPath, PATHINFO_EXTENSION));
@@ -25,13 +26,13 @@ if (preg_match('/\.(css|js|png|jpg|jpeg|gif|svg|ico|json)$/', $uri)) {
             'svg' => 'image/svg+xml',
             'ico' => 'image/x-icon',
         ];
-        
+
         header('Content-Type: ' . ($mimeTypes[$ext] ?? 'application/octet-stream'));
         header('Cache-Control: public, max-age=3600');
         readfile($frontendPath);
         return true;
     }
-    
+
     // File not found
     http_response_code(404);
     echo "File not found: $uri";

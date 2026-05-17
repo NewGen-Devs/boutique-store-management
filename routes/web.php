@@ -104,6 +104,13 @@ return function (Router $router) {
     $router->get('/api/reports/inventory/low-stock', 'Api\ReportController@getLowStockReport', 'api.reports.inventory.low_stock');
 
     // ============================================
+    // API ROUTES - CHARTS
+    // ============================================
+    $router->get('/api/charts/sales-trend', 'Api\ChartController@getSalesTrend', 'api.charts.sales-trend');
+    $router->get('/api/charts/revenue-by-branch', 'Api\ChartController@getRevenueByBranch', 'api.charts.revenue-by-branch');
+    $router->get('/api/charts/category-performance', 'Api\ChartController@getCategoryPerformance', 'api.charts.category-performance');
+
+    // ============================================
     // API ROUTES - DASHBOARD ANALYTICS
     // ============================================
     $router->get('/api/dashboard/manager', 'Api\DashboardController@manager', 'api.dashboard.manager');

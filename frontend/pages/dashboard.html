@@ -348,6 +348,28 @@
             </div>
           </div>
 
+          <!-- Charts Section -->
+          <div class="d-flex gap-md" style="margin-bottom:var(--space-lg);flex-wrap:wrap">
+            <!-- Sales Trend Line Chart -->
+            <div class="data-panel" style="flex:2;min-width:400px;height:350px;position:relative;">
+              <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Sales Trend (30 Days)</h3>
+              <canvas id="salesTrendChart"></canvas>
+            </div>
+
+            <!-- Revenue by Branch Doughnut -->
+            <div class="data-panel"
+              style="flex:1;min-width:300px;height:350px;position:relative;display:flex;flex-direction:column">
+              <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Revenue by Branch</h3>
+              <div style="flex:1;position:relative"><canvas id="branchRevenueChart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Category Performance Bar Chart -->
+          <div class="data-panel" style="margin-bottom:var(--space-lg);height:350px;position:relative;">
+            <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Top Category Performance</h3>
+            <canvas id="categoryPerformanceChart"></canvas>
+          </div>
+
           <!-- Branch Performance Table -->
           <div class="data-panel" style="margin-bottom:var(--space-lg)">
             <h3 style="font-size:0.875rem;font-weight:600;margin-bottom:var(--space-md)">Sales by Branch</h3>
@@ -802,14 +824,21 @@
     </div>
   </div>
 
-  <script src="/js/mockData.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/api-users.js"></script>
-  <script src="/js/api-roles.js"></script>
-  <script src="/js/api-reports.js"></script>
-  <script src="/js/api-dashboard.js"></script>
-  <script src="/js/dashboard.js"></script>
-  <script src="/js/products.js"></script>
+  <!-- Chart.js via CDN (UMD format for standalone browser script tags) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
+
+  <script src="/js/mockData.js?v=2"></script>
+  <script src="/js/api.js?v=2"></script>
+  <script src="/js/api-users.js?v=2"></script>
+  <script src="/js/api-roles.js?v=2"></script>
+  <script src="/js/api-reports.js?v=2"></script>
+  <script src="/js/api-dashboard.js?v=2"></script>
+  <script src="/js/api-charts.js?v=2"></script>
+  <script src="/js/charts-ui.js?v=2"></script>
+  <script src="/js/dashboard.js?v=3"></script>
+  <script src="/js/products.js?v=2"></script>
+
+  <!-- TEST CHART (removed) -->
 </body>
 
 </html>
