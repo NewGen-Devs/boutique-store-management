@@ -68,6 +68,38 @@ return function (Router $router) {
     $router->get('/api/password/verify-token', 'PasswordResetController@apiVerifyToken', 'api.password.verify');
 
     // ============================================
+    // API ROUTES - BRANCHES
+    // ============================================
+    $router->get('/api/branches', 'BranchController@index', 'api.branches.index');
+
+    // ============================================
+    // API ROUTES - INVENTORY
+    // ============================================
+    $router->get('/api/inventory',              'InventoryController@index',    'api.inventory.index');
+    $router->get('/api/inventory/low-stock',    'InventoryController@lowStock', 'api.inventory.low');
+    $router->get('/api/inventory/value',        'InventoryController@value',    'api.inventory.value');
+    $router->get('/api/inventory/history',      'InventoryController@history',  'api.inventory.history');
+    $router->get('/api/inventory/report',       'InventoryController@report',   'api.inventory.report');
+    $router->post('/api/inventory/adjust',      'InventoryController@adjust',   'api.inventory.adjust');
+    $router->post('/api/inventory/damage',      'InventoryController@damage',   'api.inventory.damage');
+
+    // ============================================
+    // API ROUTES - TRANSFERS
+    // ============================================
+    $router->get('/api/transfers',              'TransferController@index',     'api.transfers.index');
+    $router->post('/api/transfers',             'TransferController@store',     'api.transfers.store');
+    $router->get('/api/transfers/{id}',         'TransferController@show',      'api.transfers.show');
+    $router->post('/api/transfers/{id}/approve','TransferController@approve',   'api.transfers.approve');
+    $router->post('/api/transfers/{id}/receive','TransferController@receive',   'api.transfers.receive');
+
+    // ============================================
+    // API ROUTES - SALES
+    // ============================================
+    $router->get('/api/sales',                  'SalesController@index',        'api.sales.index');
+    $router->post('/api/sales',                 'SalesController@store',        'api.sales.store');
+    $router->get('/api/sales/{id}',             'SalesController@show',         'api.sales.show');
+
+    // ============================================
     // API ROUTES - USER MANAGEMENT
     // ============================================
     $router->get('/api/users', 'Api\UserManagementController@listUsers', 'api.users.list');

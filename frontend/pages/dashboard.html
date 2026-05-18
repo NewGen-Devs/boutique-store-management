@@ -93,23 +93,92 @@
         <section id="view-inventory" class="view-section">
           <div class="page-header d-flex justify-between align-center">
             <h1 class="page-title">Inventory</h1>
-            <button class="btn btn-primary" id="addItemBtn" style="display:none">Add Item</button>
+            <div class="d-flex gap-sm">
+              <select id="invBranchFilter" class="form-control" style="max-width:200px" onchange="loadInventory(); loadLowStock(); loadInventoryHistory();">
+                <option value="">All Branches</option>
+              </select>
+              <button class="btn btn-outline" onclick="switchView('inv-history')">History</button>
+              <button class="btn btn-primary" id="addItemBtn" style="display:none">Adjust Stock</button>
+            </div>
+          </div>
+
+          <!-- Value Widgets -->
+          <div class="widget-grid" id="invValueWidgets" style="display:none">
+            <div class="widget">
+              <div class="widget-title">Total Units</div>
+              <div class="widget-value" id="invTotalUnits">—</div>
+            </div>
+            <div class="widget">
+              <div class="widget-title">Stock Value (Sell)</div>
+              <div class="widget-value" id="invTotalValue">—</div>
+            </div>
+            <div class="widget">
+              <div class="widget-title">Stock Cost</div>
+              <div class="widget-value" id="invTotalCost">—</div>
+            </div>
           </div>
           <div class="data-panel">
             <div class="table-wrapper">
               <table id="inventoryTable">
                 <thead>
+                  <tr><th>SKU</th><th>Item</th><th>Category</th><th>Branch</th><th>Price</th><th>Stock</th><th>Damaged</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="inventoryTableBody"><!-- Injected by inventory.js --></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- INVENTORY HISTORY -->
+        <section id="view-inv-history" class="view-section">
+          <div class="page-header d-flex justify-between align-center">
+            <h1 class="page-title">Stock History</h1>
+            <button class="btn btn-outline" onclick="switchView('inventory')">← Back</button>
+          </div>
+          <div class="data-panel">
+            <div class="table-wrapper">
+              <table id="historyTable">
+                <thead>
+                  <tr><th>Date</th><th>Item</th><th>Branch</th><th>Type</th><th>Change</th><th>Notes</th></tr>
+                </thead>
+                <tbody id="historyTableBody"><tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Select inventory first</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+        <!-- TRANSFERS -->
+        <section id="view-transfers" class="view-section">
+          <div class="page-header d-flex justify-between align-center">
+            <h1 class="page-title">Stock Transfers</h1>
+            <button class="btn btn-primary" onclick="openCreateTransferModal()">New Transfer</button>
+          </div>
+          
+          <div class="filter-bar" style="margin-bottom: 1.5rem; display:flex; gap:1rem; flex-wrap:wrap">
+             <select id="transferStatusFilter" onchange="loadTransfers()" style="min-width:150px">
+               <option value="">All Statuses</option>
+               <option value="pending">Pending</option>
+               <option value="in_transit">In Transit</option>
+               <option value="completed">Completed</option>
+               <option value="cancelled">Cancelled</option>
+             </select>
+          </div>
+
+          <div class="data-panel">
+            <div class="table-wrapper">
+              <table id="transfersTable">
+                <thead>
                   <tr>
-                    <th>SKU</th>
-                    <th>Item</th>
-                    <th>Category</th>
-                    <th>Price</th>
-                    <th>Stock</th>
+                    <th>Ref ID</th>
+                    <th>Date</th>
+                    <th>From Branch</th>
+                    <th>To Branch</th>
                     <th>Status</th>
-                    <th>Branch</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody><!-- Injected by dashboard.js --></tbody>
+                <tbody id="transfersTableBody">
+                   <tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Loading transfers...</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -255,10 +324,10 @@
         <!-- STOCK ALERTS -->
         <section id="view-stock-ops" class="view-section">
           <div class="page-header">
-            <h1 class="page-title">Alerts</h1>
+            <h1 class="page-title">Low Stock Alerts</h1>
           </div>
-          <div id="stockAlertsContainer">
-            <!-- Injected by dashboard.js -->
+          <div id="lowStockAlerts" style="padding:1rem">
+            <!-- Injected by inventory.js -->
           </div>
         </section>
         <!-- MY SALES -->
@@ -611,12 +680,177 @@
     </div>
   </div>
 
-  <script src="/js/mockData.js"></script>
-  <script src="/js/api.js"></script>
+  <!-- STOCK MANAGEMENT MODAL -->
+  <div id="stockModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:400px;margin:auto">
+      <h3 id="stockModalTitle" style="margin-bottom:var(--space-sm)">Manage Stock</h3>
+      <p id="stockModalItemName" style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:var(--space-lg)"></p>
+      
+      <form id="stockForm" onsubmit="submitStockForm(event)">
+        <input type="hidden" id="stockItemId">
+        <input type="hidden" id="stockBranchId">
+        <input type="hidden" id="stockActionType">
+        
+        <div class="form-group">
+          <label class="form-label" id="stockQtyLabel">Quantity Change</label>
+          <input id="stockQty" type="number" class="form-control" required>
+          <small id="stockQtyHelp" style="color:var(--text-muted);font-size:0.75rem;display:block;margin-top:0.25rem">Use positive numbers to add stock, negative to remove.</small>
+        </div>
+        
+        <div class="d-flex gap-md justify-between" style="margin-top:var(--space-lg)">
+          <button type="button" class="btn btn-outline" onclick="closeStockModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="stockSubmitBtn">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD INVENTORY MODAL -->
+  <div id="addInventoryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:400px;margin:auto">
+      <h3 style="margin-bottom:var(--space-lg)">Add Stock to Branch</h3>
+      <form id="addInventoryForm" onsubmit="submitAddInventoryForm(event)">
+        
+        <div class="form-group">
+          <label class="form-label">Product</label>
+          <select id="addInvProductId" class="form-control" required>
+             <option value="">Loading products...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Branch</label>
+          <select id="addInvBranchId" class="form-control" required>
+             <option value="">Loading branches...</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Quantity to Add</label>
+          <input id="addInvQty" type="number" class="form-control" min="1" required>
+        </div>
+        
+        <div class="d-flex gap-md justify-between" style="margin-top:var(--space-lg)">
+          <button type="button" class="btn btn-outline" onclick="closeAddInventoryModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="addInvSubmitBtn">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CREATE TRANSFER MODAL -->
+  <div id="createTransferModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:600px;max-height:90vh;overflow-y:auto;margin:auto">
+      <h3 style="margin-bottom:var(--space-lg)">New Stock Transfer</h3>
+      <form id="createTransferForm" onsubmit="submitCreateTransfer(event)">
+        <div class="d-flex gap-md" style="margin-bottom:1rem">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">From Branch *</label>
+            <select id="transferFromBranch" class="form-control" required onchange="loadBranchItemsForTransfer()">
+              <option value="">Select Origin Branch</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">To Branch *</label>
+            <select id="transferToBranch" class="form-control" required>
+              <option value="">Select Destination Branch</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Select Items *</label>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+             <select id="transferItemSelect" class="form-control" style="flex:1">
+                <option value="">Select an item...</option>
+             </select>
+             <input type="number" id="transferItemQty" class="form-control" style="width:100px" placeholder="Qty" min="1">
+             <button type="button" class="btn btn-outline" onclick="addTransferItem()">Add</button>
+          </div>
+        </div>
+        
+        <div style="border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:1rem">
+           <table id="transferItemsTable" style="margin:0;width:100%;font-size:0.875rem">
+              <thead style="background:var(--bg-secondary)">
+                 <tr>
+                    <th style="padding:0.5rem">Item</th>
+                    <th style="padding:0.5rem">Quantity</th>
+                    <th style="padding:0.5rem">Action</th>
+                 </tr>
+              </thead>
+              <tbody id="transferItemsBody">
+                 <tr><td colspan="3" style="text-align:center;padding:1rem;color:var(--text-muted)">No items added</td></tr>
+              </tbody>
+           </table>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea id="transferNotes" class="form-control" rows="2" style="resize:vertical"></textarea>
+        </div>
+        
+        <div class="d-flex gap-md justify-between" style="margin-top:var(--space-lg)">
+          <button type="button" class="btn btn-outline" onclick="closeCreateTransferModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="transferSubmitBtn">Create Transfer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRANSFER DETAILS MODAL -->
+  <div id="transferDetailsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:600px;max-height:90vh;overflow-y:auto;margin:auto">
+      <div class="d-flex justify-between align-center" style="margin-bottom:var(--space-lg)">
+        <h3>Transfer Details <span id="tdRef" style="font-size:0.8rem;color:var(--text-secondary);font-weight:normal"></span></h3>
+        <span id="tdStatus" class="badge"></span>
+      </div>
+      
+      <div class="d-flex gap-md" style="margin-bottom:1rem;font-size:0.875rem">
+         <div style="flex:1"><strong>From:</strong> <span id="tdFrom"></span></div>
+         <div style="flex:1"><strong>To:</strong> <span id="tdTo"></span></div>
+         <div style="flex:1"><strong>Date:</strong> <span id="tdDate"></span></div>
+      </div>
+      
+      <p style="font-size:0.875rem;margin-bottom:1rem;color:var(--text-secondary)" id="tdNotes"></p>
+
+      <div style="border:1px solid var(--border-color);border-radius:var(--radius-md);margin-bottom:1rem">
+         <table style="margin:0;width:100%;font-size:0.875rem">
+            <thead style="background:var(--bg-secondary)">
+               <tr>
+                  <th style="padding:0.5rem">Item</th>
+                  <th style="padding:0.5rem">SKU</th>
+                  <th style="padding:0.5rem">Qty Sent</th>
+                  <th style="padding:0.5rem">Qty Received</th>
+               </tr>
+            </thead>
+            <tbody id="tdItemsBody">
+            </tbody>
+         </table>
+      </div>
+
+      <div class="d-flex justify-end gap-sm" style="margin-top:1.5rem">
+         <button class="btn btn-outline" onclick="closeTransferDetailsModal()">Close</button>
+         <span id="tdActions" style="display:inline-flex;gap:0.5rem"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECEIPT MODAL -->
+  <div id="receiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:350px;margin:auto">
+      <div id="receiptContent"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:1rem" onclick="closeReceiptModal()">Close Receipt</button>
+    </div>
+  </div>
+
+  <script src="/js/mockData.js?v=2"></script>
+  <script src="/js/api.js?v=2"></script>
+  <script src="/js/inventory_v2.js?v=3"></script>
   <script src="/js/api-users.js"></script>
   <script src="/js/api-roles.js"></script>
-  <script src="/js/dashboard.js"></script>
-  <script src="/js/products.js"></script>
+  <script src="/js/dashboard.js?v=2"></script>
+  <script src="/js/products.js?v=2"></script>
+  <script src="/js/transfers.js"></script>
 </body>
 
 </html>

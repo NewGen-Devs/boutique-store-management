@@ -8,6 +8,9 @@ window.saveDB = function () {
   localStorage.setItem('BoutiqueDB', JSON.stringify(window.MOCK_DATA));
 };
 
+// Guard to prevent setupRoleUI from being called multiple times
+let roleUISetup = false;
+
 document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
 
@@ -19,55 +22,67 @@ document.addEventListener('DOMContentLoaded', () => {
     window.saveDB();
   }
 
-  // Render UI immediately from localStorage (prevents flash/flicker)
-  const cachedRole = localStorage.getItem('userRole');
-  if (cachedRole) {
-    const roleInt = parseInt(cachedRole);
-    setupRoleUI(isNaN(roleInt) ? cachedRole : roleInt);
-    setupMobileMenu();
+  // Auth Check - Verify with backend
+  const userId = localStorage.getItem('userId');
+  const userRole = localStorage.getItem('userRole');
+  
+  if (!userId) {
+    console.log('No userId in localStorage, redirecting to login');
+    window.location.href = '/login?reason=no_session';
+    return;
   }
 
-  // Verify auth with backend silently (no redirect loop on failure)
-  fetch('/api/user', {
-    method: 'GET',
-    headers: {
-      'X-CSRF-Token': localStorage.getItem('csrfToken') || ''
+  // If we have cached user data, use it to setup UI while verifying with backend
+  if (userRole && !roleUISetup) {
+    roleUISetup = true;
+    setupRoleUI(parseInt(userRole));
+    setupMobileMenu();
+    
+    // Load branches into filter dropdown
+    if (typeof loadBranchesIntoFilter === 'function') {
+      loadBranchesIntoFilter();
     }
-  })
+  }
+
+  // Verify auth with backend (non-blocking)
+  const csrfToken = localStorage.getItem('csrfToken');
+  if (csrfToken) {
+    fetch('/api/user', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      }
+    })
     .then(response => {
-      if (response.status === 401) {
-        // Only redirect on explicit 401 Unauthorized
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('csrfToken');
-        window.location.href = '/login';
+      if (!response.ok) {
+        console.warn('API user verification failed:', response.status);
         return null;
       }
-      if (!response.ok) return null;
       return response.json();
     })
     .then(data => {
-      if (!data || !data.user) return;
-
-      // Update localStorage with fresh data from backend
-      const freshRole = data.user.role_id;
-      const freshName = (data.user.first_name || '') + ' ' + (data.user.last_name || '');
-      localStorage.setItem('userRole', freshRole);
-      localStorage.setItem('userName', freshName.trim());
-
-      // If role changed from what we rendered, re-render
-      const currentRole = parseInt(cachedRole);
-      if (freshRole !== currentRole && !cachedRole) {
-        // Only re-setup if we didn't render initially
-        setupRoleUI(freshRole);
-        setupMobileMenu();
+      if (data && data.user) {
+        // Update role UI if data changed
+        const newRole = data.user.role_id;
+        if (newRole && newRole !== userRole) {
+          console.log('User role changed, updating UI');
+          setupRoleUI(newRole);
+        }
       }
     })
     .catch(error => {
-      // Network error — don't redirect, just log it
-      console.warn('Backend verification failed (network issue):', error.message);
+      console.warn('Auth verification error (non-blocking):', error.message);
+      // Don't redirect on error - user data is already cached in localStorage
     });
+  } else {
+    // No CSRF token, clear auth and redirect
+    console.log('No CSRF token, redirecting to login');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userName');
+    window.location.href = '/login?reason=no_csrf';
+  }
 });
 
 // ——— Role-Based UI Setup ———
@@ -93,17 +108,22 @@ function setupRoleUI(role) {
       { id: 'branches', icon: 'store', label: 'Branches' },
       { id: 'users', icon: 'users', label: 'Users' },
       { id: 'inventory', icon: 'package-search', label: 'Inventory' },
+      { id: 'transfers', icon: 'truck', label: 'Transfers' },
       { id: 'reports', icon: 'bar-chart-2', label: 'Analytics' }
     ];
     defaultView = 'overview';
     renderRecentSales();
     renderBranches();
     renderUsers();
-  } else if (role === 2 || role === 'store_keeper') {
+    // Initialize inventory for managers
+    setTimeout(() => { loadInventory(); }, 300);
+
+  } else if (role == 2 || role === 'store_keeper') {
     userNameEl.textContent = localName || 'Alice Smith';
     userRoleEl.textContent = 'Store Keeper';
     navItems = [
       { id: 'inventory', icon: 'package', label: 'Stock' },
+      { id: 'transfers', icon: 'truck', label: 'Transfers' },
       { id: 'stock-ops', icon: 'bell', label: 'Alerts' },
       { id: 'my-sales', icon: 'activity', label: 'Performance' }
     ];
@@ -112,7 +132,10 @@ function setupRoleUI(role) {
     document.getElementById('addItemBtn').onclick = createItem;
     renderStockAlerts();
     renderMySales(activeUserNameForFilter);
-  } else if (role === 3 || role === 'seller') {
+    // Initialize inventory for store keepers
+    setTimeout(() => { loadInventory(); loadLowStock(); }, 300);
+
+  } else if (role == 3 || role === 'seller') {
     userNameEl.textContent = localName || 'Sarah Connor';
     userRoleEl.textContent = 'Seller';
     navItems = [
@@ -150,6 +173,9 @@ function setupRoleUI(role) {
   const initials = finalName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   userAvatarEl.textContent = initials;
 
+  // Clear nav before rendering new items
+  sidebarNav.innerHTML = '';
+  
   // Render Nav
   navItems.forEach(item => {
     const btn = document.createElement('div');
@@ -174,6 +200,17 @@ function switchView(viewId) {
   const nav = document.getElementById(`nav-${viewId}`);
   if (nav) nav.classList.add('active');
   document.getElementById('sidebar').classList.remove('open');
+  
+  // Load data for specific views
+  if (viewId === 'inventory' && typeof loadInventory === 'function') {
+    loadInventory();
+    if (typeof loadLowStock === 'function') loadLowStock();
+    if (typeof loadInventoryHistory === 'function') loadInventoryHistory();
+  }
+  
+  if (viewId === 'transfers' && typeof loadTransfers === 'function') {
+    loadTransfers();
+  }
 }
 
 function logout() {
@@ -208,79 +245,12 @@ function logout() {
 
 // ——— Inventory ———
 function renderInventoryTable() {
-  const tbody = document.querySelector('#inventoryTable tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  const inventory = window.MOCK_DATA.inventory || [];
-  const userRole = parseInt(localStorage.getItem('userRole')) || localStorage.getItem('userRole');
-
-  inventory.forEach((item, index) => {
-    let statusClass = 'badge-success';
-    if (item.stock < 10) statusClass = 'badge-warning';
-    if (item.stock === 0) statusClass = 'badge-danger';
-
-    let actionBtns = '';
-    if (userRole === 2 || userRole === 'store_keeper') {
-      actionBtns = `<button class="btn btn-outline" style="padding:0.25rem 0.75rem;font-size:0.75rem" onclick="updateItemQty(${index})">Update</button>`;
-    } else if (userRole === 1 || userRole === 'manager') {
-      actionBtns = `<button class="btn btn-outline" style="padding:0.25rem 0.75rem;font-size:0.75rem" onclick="transferItem(${index})">Transfer</button>`;
-    }
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-secondary)">${item.id}</td>
-      <td style="font-weight:600">${item.name}</td>
-      <td>${item.category}</td>
-      <td>$${item.price.toFixed(2)}</td>
-      <td>${item.stock}</td>
-      <td><span class="badge ${statusClass}">${item.stock === 0 ? 'Out' : (item.stock < 10 ? 'Low' : 'In Stock')}</span></td>
-      <td>${item.branch}</td>
-      ${actionBtns ? `<td>${actionBtns}</td>` : ''}
-    `;
-    tbody.appendChild(tr);
-  });
+  // Removed mock data rendering
 }
 
-function updateItemQty(index) {
-  const item = window.MOCK_DATA.inventory[index];
-  const newQty = prompt(`Update stock for ${item.name} (Current: ${item.stock}):`, item.stock);
-  if (newQty !== null && !isNaN(newQty)) {
-    window.MOCK_DATA.inventory[index].stock = parseInt(newQty);
-    window.saveDB();
-    renderInventoryTable();
-    checkAlerts();
-  }
-}
-
-function transferItem(index) {
-  const item = window.MOCK_DATA.inventory[index];
-  const newBranch = prompt(`Transfer ${item.name} to branch (Current: ${item.branch}):`, '');
-  if (newBranch) {
-    window.MOCK_DATA.inventory[index].branch = newBranch;
-    window.saveDB();
-    renderInventoryTable();
-  }
-}
-
-function createItem() {
-  const name = prompt('Item Name:');
-  const price = prompt('Price:');
-  const qty = prompt('Initial Quantity:');
-  if (name && price && qty) {
-    window.MOCK_DATA.inventory.push({
-      id: 'ITM' + Math.floor(Math.random() * 1000),
-      name,
-      category: 'General',
-      price: parseFloat(price),
-      stock: parseInt(qty),
-      branch: 'Headquarters',
-      status: parseInt(qty) > 0 ? 'In Stock' : 'Out of Stock'
-    });
-    window.saveDB();
-    renderInventoryTable();
-  }
-}
+function updateItemQty(index) {}
+function transferItem(index) {}
+function createItem() {}
 
 // ——— Sales ———
 function renderRecentSales() {
@@ -304,26 +274,53 @@ function renderRecentSales() {
 // ——— POS ———
 let cart = [];
 
-function renderPOSItems() {
+async function renderPOSItems() {
   const grid = document.getElementById('posProductGrid');
   if (!grid) return;
-  grid.innerHTML = '';
+  grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">Loading inventory...</div>';
 
-  window.MOCK_DATA.inventory.forEach(item => {
-    if (item.stock === 0) return;
-    const div = document.createElement('div');
-    div.className = 'product-card';
-    div.onclick = () => addToCart(item);
-    div.innerHTML = `
-      <div class="product-img d-flex justify-center align-center" style="color:var(--text-secondary)">
-        <i data-lucide="shopping-bag"></i>
-      </div>
-      <div style="font-weight:600;font-size:0.875rem;margin-bottom:0.2rem">${item.name}</div>
-      <div style="color:var(--text-secondary);font-size:0.8rem">$${item.price.toFixed(2)}</div>
-    `;
-    grid.appendChild(div);
-  });
-  lucide.createIcons();
+  try {
+    const branchId = window.activeUserBranch || 1; // Default to 1 if not set
+    const res = await fetch(`/api/inventory?branch_id=${branchId}`, {
+      headers: { 'X-CSRF-Token': localStorage.getItem('csrfToken') || '' }
+    });
+    const json = await res.json();
+    const items = json.data || [];
+    
+    grid.innerHTML = '';
+    
+    if (items.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--text-muted)">No items available in stock.</div>';
+        return;
+    }
+
+    items.forEach(item => {
+      if (item.quantity <= 0) return; // Don't show out of stock
+      const div = document.createElement('div');
+      div.className = 'product-card';
+      // Normalize data to match old mock structure expectations
+      const cartItem = {
+          id: item.item_id,
+          name: item.item_name,
+          price: parseFloat(item.selling_price),
+          stock: item.quantity
+      };
+      div.onclick = () => addToCart(cartItem);
+      div.innerHTML = `
+        <div class="product-img d-flex justify-center align-center" style="color:var(--text-secondary)">
+          <i data-lucide="shopping-bag"></i>
+        </div>
+        <div style="font-weight:600;font-size:0.875rem;margin-bottom:0.2rem">${cartItem.name}</div>
+        <div style="color:var(--text-secondary);font-size:0.8rem">$${cartItem.price.toFixed(2)}</div>
+        <div style="color:var(--text-muted);font-size:0.7rem;margin-top:0.25rem">Stock: ${cartItem.stock}</div>
+      `;
+      grid.appendChild(div);
+    });
+    lucide.createIcons();
+  } catch (e) {
+      grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: var(--danger)">Error loading inventory.</div>';
+      console.error(e);
+  }
 }
 
 function addToCart(item) {
@@ -343,6 +340,7 @@ function updateCartUI() {
     container.innerHTML = '<div style="text-align:center;color:var(--text-muted);margin-top:2rem;font-size:0.875rem">Cart is empty</div>';
     document.getElementById('cartSubtotal').textContent = '$0.00';
     document.getElementById('cartTotal').textContent = '$0.00';
+    window.posDiscountRate = 0; // reset discount if cart empty
     return;
   }
 
@@ -368,8 +366,17 @@ function updateCartUI() {
   });
 
   lucide.createIcons();
+  
+  const discountRate = window.posDiscountRate || 0;
+  const finalTotal = subtotal * (1 - discountRate);
+
   document.getElementById('cartSubtotal').textContent = `$${subtotal.toFixed(2)}`;
-  document.getElementById('cartTotal').textContent = `$${subtotal.toFixed(2)}`;
+  
+  if (discountRate > 0) {
+      document.getElementById('cartTotal').innerHTML = `<span style="text-decoration:line-through;color:var(--text-muted);font-size:1rem;margin-right:0.5rem">$${subtotal.toFixed(2)}</span>$${finalTotal.toFixed(2)}`;
+  } else {
+      document.getElementById('cartTotal').textContent = `$${finalTotal.toFixed(2)}`;
+  }
 }
 
 function removeFromCart(index) {
@@ -377,12 +384,119 @@ function removeFromCart(index) {
   updateCartUI();
 }
 
-function processCheckout() {
+async function processCheckout() {
   if (cart.length === 0) return alert('Cart is empty.');
-  alert(`Payment processed! Total: ${document.getElementById('cartTotal').textContent}`);
-  cart = [];
-  updateCartUI();
+  
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  checkoutBtn.disabled = true;
+  checkoutBtn.textContent = 'Processing...';
+
+  try {
+      const branchId = window.activeUserBranch || 1;
+      
+      let subtotal = 0;
+      const items = cart.map(item => {
+          const itemTotal = item.price * item.quantity;
+          subtotal += itemTotal;
+          return {
+              item_id: item.id,
+              quantity: item.quantity,
+              unit_price: item.price,
+              subtotal: itemTotal,
+              discount: 0
+          };
+      });
+
+      const discountRate = window.posDiscountRate || 0;
+      const discountAmount = subtotal * discountRate;
+      const finalAmount = subtotal - discountAmount;
+
+      const payload = {
+          branch_id: branchId,
+          items: items,
+          total_amount: subtotal,
+          discount_amount: discountAmount,
+          final_amount: finalAmount,
+          payment_method: 'cash',
+          notes: ''
+      };
+
+      const res = await fetch('/api/sales', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': localStorage.getItem('csrfToken') || ''
+          },
+          body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      
+      if (res.ok && json.success) {
+          showReceiptModal(json.data.id, cart, subtotal, discountAmount, finalAmount);
+          cart = [];
+          window.posDiscountRate = 0;
+          updateCartUI();
+          renderPOSItems(); // Refresh stock
+          renderMySales(); // Refresh own sales
+      } else {
+          alert('Failed to process sale: ' + (json.message || 'Unknown error'));
+      }
+  } catch (e) {
+      console.error(e);
+      alert('Network error occurred during checkout.');
+  } finally {
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = 'Finalize Transaction';
+  }
 }
+
+function showReceiptModal(txnId, items, subtotal, discount, total) {
+    const modal = document.getElementById('receiptModal');
+    if (!modal) return alert(`Payment processed! TXN ID: ${txnId}\\nTotal: $${total.toFixed(2)}`);
+
+    const date = new Date().toLocaleString();
+    let itemsHtml = items.map(i => `
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem; font-size:0.875rem;">
+            <span>${i.quantity}x ${i.name}</span>
+            <span>$${(i.price * i.quantity).toFixed(2)}</span>
+        </div>
+    `).join('');
+
+    document.getElementById('receiptContent').innerHTML = `
+        <div style="text-align:center; margin-bottom:1rem;">
+            <h2 style="margin:0; font-size:1.25rem;">Boutique Store</h2>
+            <div style="color:var(--text-secondary); font-size:0.75rem;">TXN: ${txnId} | ${date}</div>
+        </div>
+        <div style="border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); padding:1rem 0; margin-bottom:1rem;">
+            ${itemsHtml}
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.875rem; margin-bottom:0.25rem;">
+            <span>Subtotal:</span>
+            <span>$${subtotal.toFixed(2)}</span>
+        </div>
+        ${discount > 0 ? `
+        <div style="display:flex; justify-content:space-between; font-size:0.875rem; color:var(--success); margin-bottom:0.25rem;">
+            <span>Discount:</span>
+            <span>-$${discount.toFixed(2)}</span>
+        </div>
+        ` : ''}
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.1rem; margin-top:0.5rem;">
+            <span>Total:</span>
+            <span>$${total.toFixed(2)}</span>
+        </div>
+        <div style="text-align:center; margin-top:1.5rem; font-size:0.8rem; color:var(--text-secondary);">
+            Thank you for shopping with us!
+        </div>
+    `;
+    modal.style.display = 'flex';
+}
+
+function closeReceiptModal() {
+    const modal = document.getElementById('receiptModal');
+    if (modal) modal.style.display = 'none';
+}
+
 
 // ——— Branches ———
 async function renderBranches() {
@@ -948,21 +1062,37 @@ async function deleteRole(roleId) {
 }
 
 // ——— Reports ———
-function generateReport(type) {
+async function generateReport(type) {
   const log = document.getElementById('reportLog');
   const title = document.getElementById('reportTitle');
+  log.textContent = 'Loading...';
 
-  if (type === 'daily') {
-    title.textContent = 'Daily Sales — ' + new Date().toLocaleDateString();
-    log.textContent = JSON.stringify(window.MOCK_DATA.recentSales.slice(0, 2), null, 2);
-  } else if (type === 'weekly') {
-    title.textContent = 'Weekly Revenue';
-    log.textContent = 'Downtown: $24,500\nUptown: $18,200\n\nTop Seller: Sarah Connor';
-  } else if (type === 'inventory') {
-    title.textContent = 'Inventory Snapshot';
-    const fast = window.MOCK_DATA.inventory.filter(i => i.stock < 10);
-    const slow = window.MOCK_DATA.inventory.filter(i => i.stock >= 10);
-    log.textContent = 'LOW STOCK:\n' + JSON.stringify(fast, null, 2) + '\n\nHEALTHY:\n' + JSON.stringify(slow, null, 2);
+  try {
+      const res = await fetch('/api/sales', {
+          headers: { 'X-CSRF-Token': localStorage.getItem('csrfToken') || '' }
+      });
+      const json = await res.json();
+      const allSales = json.data || [];
+
+      if (type === 'daily') {
+        title.textContent = 'Daily Sales — ' + new Date().toLocaleDateString();
+        // Just show all sales simply as a placeholder for daily, or filter by today's date if timestamps exist
+        log.textContent = JSON.stringify(allSales.slice(0, 10), null, 2);
+      } else if (type === 'weekly') {
+        title.textContent = 'Weekly Revenue';
+        const total = allSales.reduce((acc, s) => acc + parseFloat(s.final_amount), 0);
+        log.textContent = `Total Revenue (All Time): $${total.toFixed(2)}\\n\\n(Full weekly breakdown requires backend filters)`;
+      } else if (type === 'inventory') {
+        title.textContent = 'Inventory Snapshot';
+        const invRes = await fetch('/api/inventory', { headers: { 'X-CSRF-Token': localStorage.getItem('csrfToken') || '' }});
+        const invJson = await invRes.json();
+        const items = invJson.data || [];
+        const fast = items.filter(i => i.quantity < 10);
+        const slow = items.filter(i => i.quantity >= 10);
+        log.textContent = 'LOW STOCK:\\n' + JSON.stringify(fast, null, 2) + '\\n\\nHEALTHY:\\n' + JSON.stringify(slow, null, 2);
+      }
+  } catch (e) {
+      log.textContent = 'Error loading report data.';
   }
 }
 
@@ -990,27 +1120,38 @@ function checkAlerts() {
 }
 
 // ——— My Sales ———
-function renderMySales(userName) {
+async function renderMySales(userName) {
   const tbody = document.querySelector('#mySalesTable tbody');
   if (!tbody) return;
-  tbody.innerHTML = '';
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">Loading...</td></tr>';
 
-  const mySales = (window.MOCK_DATA.recentSales || []).filter(s => s.seller === userName);
-  if (mySales.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">No sales recorded yet.</td></tr>';
-    return;
+  try {
+    const userId = window.activeUserId || '';
+    const url = userId ? `/api/sales?user_id=${userId}` : '/api/sales';
+    const res = await fetch(url, { headers: { 'X-CSRF-Token': localStorage.getItem('csrfToken') || '' } });
+    const json = await res.json();
+    const mySales = json.data || [];
+
+    if (mySales.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted)">No sales recorded yet.</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = '';
+    mySales.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--text-secondary)">${new Date(s.created_at).toLocaleString()}</td>
+        <td>${s.transaction_number}</td>
+        <td>${s.branch_name || 'Main Branch'}</td>
+        <td style="font-weight:700;color:var(--primary)">$${parseFloat(s.final_amount).toFixed(2)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--danger)">Failed to load sales history.</td></tr>';
   }
-
-  mySales.forEach(s => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="color:var(--text-secondary)">${s.date}</td>
-      <td>${s.id}</td>
-      <td>${s.branch}</td>
-      <td style="font-weight:700">$${s.total.toFixed(2)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
 }
 
 // ——— Discounts ———
@@ -1019,9 +1160,8 @@ function applyDiscount() {
   const code = prompt('Discount Code (e.g., VIP10):');
   if (code) {
     alert('Discount applied! 10% off total.');
-    const el = document.getElementById('cartTotal');
-    const cur = parseFloat(el.textContent.replace('$', ''));
-    el.textContent = '$' + (cur * 0.9).toFixed(2);
+    window.posDiscountRate = 0.10;
+    updateCartUI();
   }
 }
 
