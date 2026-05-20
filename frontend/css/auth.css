@@ -56,3 +56,36 @@
     box-shadow: none;
   }
 }
+
+/* Premium Login Button */
+#loginBtn {
+  background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+#loginBtn:hover {
+  background: linear-gradient(135deg, #fa5400 0%, #ff8a00 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(250, 84, 0, 0.4);
+}
+
+#loginBtn:active {
+  transform: translateY(0);
+}
+
+/* Dark Mode adjustment for auth container */
+[data-theme='dark'] .auth-container {
+  background: radial-gradient(circle at top right, rgba(250, 84, 0, 0.1), transparent 70%), #050505;
+}
+
+[data-theme='dark'] .auth-form {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}

@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
   }
 
+  setupMobileMenu();
+
   // Verify auth with backend silently (no redirect loop on failure)
   fetch('/api/user', {
     method: 'GET',
@@ -87,6 +89,14 @@ function setupRoleUI(role) {
   if (role === 1 || role === 'manager') {
     userNameEl.textContent = localName || 'Admin';
     userRoleEl.textContent = 'Manager';
+
+    // Update Welcome Message with Translation
+    const welcomeTitle = document.querySelector('.welcome-text h1');
+    if (welcomeTitle) {
+      const userName = localStorage.getItem('userName') || 'User';
+      const welcomePrefix = window.i18n && window.I18N_DATA[window.i18n.currentLang]?.welcome_title || "Welcome back";
+      welcomeTitle.textContent = `${welcomePrefix}, ${userName.split(' ')[0]}`;
+    }
     navItems = [
       { id: 'overview', icon: 'layout-dashboard', label: 'Overview' },
       { id: 'products', icon: 'tag', label: 'Products' },
@@ -150,19 +160,29 @@ function setupRoleUI(role) {
   const initials = finalName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   userAvatarEl.textContent = initials;
 
+  // Preserve current view if possible
+  const currentActiveItem = document.querySelector('.nav-item.active');
+  const activeId = currentActiveItem ? currentActiveItem.id.replace('nav-', '') : defaultView;
+
   // Render Nav
+  sidebarNav.innerHTML = ''; // Clear first to avoid duplication
   navItems.forEach(item => {
     const btn = document.createElement('div');
     btn.className = 'nav-item';
     btn.id = `nav-${item.id}`;
-    btn.innerHTML = `<i data-lucide="${item.icon}" class="nav-icon"></i> <span>${item.label}</span>`;
+
+    // Get translated label if available
+    const labelKey = `db_${item.id}`;
+    const displayLabel = (window.i18n && window.I18N_DATA[window.i18n.currentLang][labelKey]) || item.label;
+
+    btn.innerHTML = `<i data-lucide="${item.icon}" class="nav-icon"></i> <span>${displayLabel}</span>`;
     btn.onclick = () => switchView(item.id);
     sidebarNav.appendChild(btn);
   });
 
   lucide.createIcons();
   renderInventoryTable();
-  switchView(defaultView);
+  switchView(activeId);
 }
 
 // ——— View Switching ———
@@ -303,6 +323,13 @@ async function renderRecentSales() {
   document.getElementById('ovActiveUsers').textContent = kpis.active_users || 0;
   document.getElementById('ovTodayTxns').textContent = kpis.today_transactions || 0;
 
+  // Render Sparklines (using mock trend data for visual impact)
+  if (window.renderSparkline) {
+    renderSparkline('ovTodayRevenueSpark', [12, 18, 15, 25, 22, 30, 28], '#fa5400');
+    renderSparkline('ovMonthRevenueSpark', [450, 480, 460, 520, 500, 550, 530], '#fa5400');
+    renderSparkline('ovTodayTxnsSpark', [5, 8, 7, 12, 10, 15, 14], '#fa5400');
+  }
+
   // Top Sellers
   const sellerBody = document.querySelector('#ovTopSellersTable tbody');
   if (d.top_sellers && d.top_sellers.length > 0) {
@@ -442,8 +469,8 @@ function removeFromCart(index) {
 }
 
 function processCheckout() {
-  if (cart.length === 0) return alert('Cart is empty.');
-  alert(`Payment processed! Total: ${document.getElementById('cartTotal').textContent}`);
+  if (cart.length === 0) return Toast.error('Cart is empty.');
+  Toast.success(`Payment processed! Total: ${document.getElementById('cartTotal').textContent}`, 'Checkout Success');
   cart = [];
   updateCartUI();
 }
@@ -511,12 +538,13 @@ async function submitBranchForm(e) {
         closeBranchForm();
         renderBranches();
         populateBranchDropdown();
+        Toast.success('Branch added successfully!', 'Branch Created');
       } else {
-        alert(result.message || 'Failed to create branch');
+        Toast.error(result.message || 'Failed to create branch');
       }
     } catch (error) {
       console.error(error);
-      alert('Error connecting to server');
+      Toast.error('Error connecting to server');
     }
   }
 }
@@ -552,13 +580,14 @@ async function executeDeleteBranch() {
       renderBranches();
       populateBranchDropdown();
       closeDeleteConfirmModal();
+      Toast.success('Branch deleted permanently.', 'Branch Removed');
     } else {
-      alert(result.message || 'Failed to delete branch');
+      Toast.error(result.message || 'Failed to delete branch');
       closeDeleteConfirmModal();
     }
   } catch (error) {
     console.error('Error deleting branch:', error);
-    alert('Error deleting branch');
+    Toast.error('Error deleting branch');
     closeDeleteConfirmModal();
   }
 }
@@ -736,7 +765,7 @@ function openUserForm(userId) {
 async function loadUserForEdit(userId) {
   const result = await UsersAPI.get(userId);
   if (!result || !result.success || !result.user) {
-    alert('Failed to load user data.');
+    Toast.error('Failed to load user data.');
     return;
   }
 
@@ -781,7 +810,7 @@ async function submitUserForm(e) {
     result = await UsersAPI.update(editingUserId, userData);
   } else {
     if (!password) {
-      alert('Password is required for new users.');
+      Toast.warning('Password is required for new users.');
       return;
     }
     result = await UsersAPI.create(userData);
@@ -792,6 +821,7 @@ async function submitUserForm(e) {
   if (result.success) {
     closeUserForm();
     renderUsers();
+    Toast.success(editingUserId ? 'User updated successfully.' : 'User created successfully.', 'User Saved');
   } else {
     // If it's a password validation error, redirect to policy page as requested
     const isPasswordError = result.errors && result.errors.password ||
@@ -1223,6 +1253,15 @@ window.exportCsv = function (type) {
 
   if (url) window.open(url, '_blank');
 };
+
+// Handle Language Change for dynamic parts
+window.addEventListener('languageChanged', () => {
+  const userRole = localStorage.getItem('userRole');
+  if (userRole) {
+    const roleInt = parseInt(userRole);
+    setupRoleUI(isNaN(roleInt) ? userRole : roleInt);
+  }
+});
 
 window.exportPdf = function (type, id = null) {
   let url = '';

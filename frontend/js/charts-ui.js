@@ -83,3 +83,49 @@ async function renderDashboardCharts() {
         console.error('Error rendering dashboard charts:', error);
     }
 }
+
+/**
+ * Renders a small, simplified sparkline chart
+ */
+function renderSparkline(canvasId, data, color = '#fa5400') {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+
+    // Destroy existing instance if it exists on the canvas element
+    const existingChart = Chart.getChart(ctx);
+    if (existingChart) existingChart.destroy();
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: data.map((_, i) => i),
+            datasets: [{
+                data: data,
+                borderColor: color,
+                borderWidth: 2,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: true,
+                backgroundColor: (context) => {
+                    const chart = context.chart;
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return null;
+                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                    gradient.addColorStop(0, color + '33');
+                    gradient.addColorStop(1, color + '00');
+                    return gradient;
+                }
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: { display: false },
+                y: { display: false, beginAtZero: false }
+            },
+            elements: { line: { capBezierPoints: true } }
+        }
+    });
+}

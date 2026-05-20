@@ -6,8 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login — Boutique Store</title>
 
+  <link rel="icon" type="image/png" href="/images/favicon.png">
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/auth.css">
+  <script src="/js/theme-toggle.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
@@ -35,8 +37,11 @@
         <p id="errorMsg" style="color:var(--danger);font-size:0.8rem;display:none;margin-bottom:1rem;text-align:center">
           Invalid email or password.</p>
 
-        <button type="submit" id="loginBtn" class="btn btn-primary"
-          style="width:100%;padding:0.875rem;font-size:0.9rem;margin-top:0.5rem">Log in</button>
+        <button type="submit" id="loginBtn" class="btn btn-primary d-flex align-center justify-center gap-sm"
+          style="width:100%;padding:0.875rem;font-size:0.9rem;margin-top:0.5rem">
+          <i data-lucide="log-in" style="width:18px;height:18px"></i>
+          <span>Log in</span>
+        </button>
       </form>
 
       <div style="text-align:center;margin-top:2.5rem;border-top:1px solid var(--border);padding-top:1.5rem">
@@ -44,7 +49,18 @@
           Test: admin@boutique.com · store@boutique.com · seller@boutique.com<br>
           Password: password123
         </p>
-        <a href="/" style="font-size:0.8rem;color:var(--text-secondary);font-weight:500">← Back to Homepage</a>
+        <div class="d-flex align-center justify-center gap-md">
+          <a href="/" style="font-size:0.8rem;color:var(--text-secondary);font-weight:500">← Back to Homepage</a>
+          <div style="width:1px;height:12px;background:var(--border)"></div>
+          <select class="lang-selector btn"
+            style="padding:0; background:transparent; border:none; color:var(--text-secondary); font-size:0.75rem; cursor:pointer">
+            <option value="en">EN</option>
+            <option value="am">አማ</option>
+          </select>
+          <button id="themeToggle" class="btn" style="padding:0; color:var(--text-secondary); min-width:unset">
+            <i data-lucide="moon" id="themeIcon" style="width:16px;height:16px"></i>
+          </button>
+        </div>
       </div>
     </div>
   </div>

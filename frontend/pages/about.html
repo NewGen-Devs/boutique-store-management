@@ -5,9 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>About — Boutique Store</title>
+  <link rel="icon" type="image/png" href="/images/favicon.png">
 
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/landing.css">
+  <script src="/js/theme-toggle.js"></script>
+  <script src="/js/i18n.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 
@@ -20,10 +23,19 @@
         <div class="logo-text">Boutique<span>Store</span></div>
       </a>
       <div class="landing-nav-links d-flex align-center">
-        <a href="/#features">Features</a>
-        <a href="/about">About</a>
-        <a href="/contact">Contact</a>
-        <a href="/login" class="btn btn-outline" style="margin-left:1.5rem">Log in</a>
+        <a href="/#features" data-i18n="nav_features">Features</a>
+        <a href="/about" data-i18n="nav_about">About</a>
+        <a href="/contact" data-i18n="nav_contact">Contact</a>
+        <select class="lang-selector btn"
+          style="padding:0.25rem 0.5rem; background:transparent; border:none; color:var(--text-secondary); font-size:0.8rem; cursor:pointer">
+          <option value="en">EN</option>
+          <option value="am">አማ</option>
+        </select>
+        <button id="themeToggle" class="btn"
+          style="padding:0.5rem; color:var(--text-secondary); margin-left:0.5rem; min-width:unset">
+          <i data-lucide="moon" id="themeIcon" style="width:18px;height:18px"></i>
+        </button>
+        <a href="/login" class="btn btn-outline" style="margin-left:1.5rem" data-i18n="nav_login">Log in</a>
       </div>
     </div>
   </nav>
