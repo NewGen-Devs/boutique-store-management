@@ -793,6 +793,15 @@ async function submitUserForm(e) {
     closeUserForm();
     renderUsers();
   } else {
+    // If it's a password validation error, redirect to policy page as requested
+    const isPasswordError = result.errors && result.errors.password ||
+      (result.message && result.message.toLowerCase().includes('password'));
+
+    if (isPasswordError) {
+      window.location.href = '/password-policy';
+      return;
+    }
+
     const errorMsg = result.errors
       ? Object.values(result.errors).join('\n')
       : result.message || 'Failed to save user.';

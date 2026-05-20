@@ -204,8 +204,9 @@ class PasswordResetController extends Controller
             return ['valid' => false, 'message' => 'Password is required'];
         }
 
-        if (strlen($password) < 8) {
-            return ['valid' => false, 'message' => 'Password must be at least 8 characters'];
+        $passwordValidation = User::validatePasswordStrength($password);
+        if (!$passwordValidation['valid']) {
+            return $passwordValidation;
         }
 
         if ($password !== $confirmPassword) {

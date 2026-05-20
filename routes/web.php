@@ -24,6 +24,7 @@ return function (Router $router) {
     $router->post('/login', 'AuthController@login', 'login.store');
     $router->post('/logout', 'AuthController@logout', 'logout');
     $router->get('/register', 'AuthController@showRegister', 'register');
+    $router->get('/password-policy', 'AuthController@showPasswordPolicy', 'password.policy');
     $router->post('/register', 'AuthController@register', 'register.store');
 
     // ============================================

@@ -155,12 +155,57 @@ class User extends Model
      */
     public function setPassword($password)
     {
-        if (strlen($password) < 8) {
-            throw new \Exception('Password must be at least 8 characters');
+        $validation = static::validatePasswordStrength($password);
+        if (!$validation['valid']) {
+            throw new \Exception($validation['message']);
         }
 
         $this->attributes['password'] = password_hash($password, PASSWORD_BCRYPT, ['cost' => PASSWORD_HASH_COST]);
         return $this;
+    }
+
+    /**
+     * Validate password strength
+     * Requirements: min 8 chars, uppercase, lowercase, number, special char
+     */
+    public static function validatePasswordStrength($password)
+    {
+        if (strlen($password) < 8) {
+            return [
+                'valid' => false,
+                'message' => 'Password must be at least 8 characters long'
+            ];
+        }
+
+        if (!preg_match('/[A-Z]/', $password)) {
+            return [
+                'valid' => false,
+                'message' => 'Password must contain at least one uppercase letter'
+            ];
+        }
+
+        if (!preg_match('/[a-z]/', $password)) {
+            return [
+                'valid' => false,
+                'message' => 'Password must contain at least one lowercase letter'
+            ];
+        }
+
+        if (!preg_match('/[0-9]/', $password)) {
+            return [
+                'valid' => false,
+                'message' => 'Password must contain at least one number'
+            ];
+        }
+
+        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+            return [
+                'valid' => false,
+                'message' => 'Password must contain at least one special character'
+            ];
+        }
+
+        return ['valid' => true];
     }
 
     /**

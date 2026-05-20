@@ -120,4 +120,11 @@ class AuthController extends Controller
         // Redirect to API endpoint message
         $this->jsonError('Registration is not yet available', 400);
     }
+    /**
+     * Show password policy page
+     */
+    public function showPasswordPolicy()
+    {
+        include FRONTEND_PATH . '/pages/password-policy.html';
+    }
 }

@@ -286,6 +286,20 @@ class UserManagementController extends Controller
                 }
             }
 
+            // Handle password update if provided
+            if (isset($data['password']) && !empty($data['password'])) {
+                $passwordValidation = User::validatePasswordStrength($data['password']);
+                if (!$passwordValidation['valid']) {
+                    $this->respondJson([
+                        'success' => false,
+                        'message' => $passwordValidation['message'],
+                        'errors' => ['password' => $passwordValidation['message']]
+                    ], 400);
+                    return;
+                }
+                $updateData['password'] = password_hash($data['password'], PASSWORD_BCRYPT);
+            }
+
             if (empty($updateData)) {
                 $this->respondJson([
                     'success' => false,
@@ -380,11 +394,21 @@ class UserManagementController extends Controller
 
         $data = $this->getJsonInput();
 
-        if (!isset($data['new_password']) || empty($data['new_password'])) {
+        if (!isset($data['new_password'])) {
             $this->respondJson([
                 'success' => false,
                 'message' => 'New password is required',
                 'errors' => ['new_password' => 'Password cannot be empty']
+            ], 400);
+            return;
+        }
+
+        $passwordValidation = User::validatePasswordStrength($data['new_password']);
+        if (!$passwordValidation['valid']) {
+            $this->respondJson([
+                'success' => false,
+                'message' => $passwordValidation['message'],
+                'errors' => ['new_password' => $passwordValidation['message']]
             ], 400);
             return;
         }
@@ -474,8 +498,13 @@ class UserManagementController extends Controller
             $errors['email'] = 'Valid email is required';
         }
 
-        if (!isset($data['password']) || strlen($data['password']) < 8) {
-            $errors['password'] = 'Password must be at least 8 characters';
+        if (!isset($data['password'])) {
+            $errors['password'] = 'Password is required';
+        } else {
+            $passwordValidation = User::validatePasswordStrength($data['password']);
+            if (!$passwordValidation['valid']) {
+                $errors['password'] = $passwordValidation['message'];
+            }
         }
 
         if (empty($data['first_name'])) {
