@@ -45,9 +45,8 @@ $permissions = [
 // Helper: convert mysqli_result to array
 function resultToArray($result)
 {
-    if (is_array($result)) {
+    if (is_array($result))
         return $result;
-    }
     if ($result instanceof \mysqli_result) {
         $rows = [];
         while ($row = $result->fetch_assoc()) {

@@ -132,6 +132,30 @@ class Database
     }
 
     /**
+     * Start a database transaction natively
+     */
+    public function beginTransaction()
+    {
+        return $this->connection->begin_transaction();
+    }
+
+    /**
+     * Commit the active transaction
+     */
+    public function commit()
+    {
+        return $this->connection->commit();
+    }
+
+    /**
+     * Rollback the active transaction
+     */
+    public function rollback()
+    {
+        return $this->connection->rollback();
+    }
+
+    /**
      * Get parameter types string for bind_param
      */
     private function getParamTypes($params)
@@ -259,7 +283,7 @@ class Database
      */
     public function update($table, $data, $where, $whereParams)
     {
-        $setClause = implode(', ', array_map(fn ($key) => "{$key} = ?", array_keys($data)));
+        $setClause = implode(', ', array_map(fn($key) => "{$key} = ?", array_keys($data)));
         $sql = "UPDATE {$table} SET {$setClause} WHERE {$where}";
 
         $params = array_merge(array_values($data), $whereParams);

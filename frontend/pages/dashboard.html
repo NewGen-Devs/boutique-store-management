@@ -181,11 +181,31 @@
         <section id="view-inventory" class="view-section">
           <div class="page-header d-flex justify-between align-center">
             <h1 class="page-title">Inventory</h1>
-            <div class="d-flex gap-sm">
+            <div class="d-flex gap-sm align-center">
+              <select id="inventoryBranchFilter" class="form-control" style="min-width:180px"
+                onchange="InventoryOps.onBranchChange()">
+                <option value="">Loading branches…</option>
+              </select>
               <button class="btn btn-outline" onclick="exportCsv('inventory')">Export CSV</button>
-              <button class="btn btn-primary" id="addItemBtn" style="display:none">Add Item</button>
             </div>
           </div>
+
+          <!-- Inventory Value Summary -->
+          <div class="d-flex gap-md" style="margin-bottom:var(--space-lg);flex-wrap:wrap" id="invValueCards">
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Total Inventory Value</p>
+              <h2 id="invTotalValueDisplay" style="font-size:1.5rem;font-weight:700">—</h2>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Total Items</p>
+              <h2 id="invTotalItemsDisplay" style="font-size:1.5rem;font-weight:700">—</h2>
+            </div>
+            <div class="data-panel" style="flex:1;min-width:180px;text-align:center">
+              <p style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:4px">Low Stock Items</p>
+              <h2 id="invLowStockCount" style="font-size:1.5rem;font-weight:700;color:var(--danger)">—</h2>
+            </div>
+          </div>
+
           <div class="data-panel">
             <div class="table-wrapper">
               <table id="inventoryTable">
@@ -204,7 +224,67 @@
               </table>
             </div>
           </div>
+
+          <!-- History Table -->
+          <div class="data-panel" style="margin-top:var(--space-lg)">
+            <div class="d-flex justify-between align-center" style="margin-bottom:var(--space-md)">
+              <h3 style="font-size:0.875rem;font-weight:600">Recent Movement Logs</h3>
+              <button class="btn btn-outline" style="padding:0.25rem 0.5rem;font-size:0.75rem"
+                onclick="InventoryOps.loadHistory()">Refresh Logs</button>
+            </div>
+            <div class="table-wrapper">
+              <table id="invHistoryTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Item</th>
+                    <th>Type</th>
+                    <th>Quantity Change</th>
+                    <th>User</th>
+                  </tr>
+                </thead>
+                <tbody id="invHistoryTableBody">
+                  <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted)">Click refresh to load logs</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
+
+        <!-- TRANSFERS -->
+        <section id="view-transfers" class="view-section">
+          <div class="page-header d-flex justify-between align-center">
+            <h1 class="page-title">Stock Transfers</h1>
+            <div class="d-flex gap-sm align-center">
+              <button class="btn btn-primary" onclick="TransferOps.openTransferModal()">Request Transfer</button>
+            </div>
+          </div>
+
+          <div class="data-panel">
+            <div class="table-wrapper">
+              <table id="transfersTable">
+                <thead>
+                  <tr>
+                    <th>Transfer ID</th>
+                    <th>Item</th>
+                    <th>Route</th>
+                    <th>Quantity</th>
+                    <th>Status</th>
+                    <th>Requested By</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="transfersTableBody">
+                  <!-- Injected by transfers.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
         <!-- POS -->
         <section id="view-pos" class="view-section">
           <div class="page-header">
@@ -235,6 +315,16 @@
                   <span>Total</span>
                   <span id="cartTotal">$0.00</span>
                 </div>
+
+                <div class="form-group" style="margin-bottom:1rem">
+                  <select id="paymentMethod" class="form-control" style="width:100%">
+                    <option value="cash">Payment: Cash</option>
+                    <option value="card">Payment: Card</option>
+                    <option value="check">Payment: Check</option>
+                    <option value="other">Payment: Other</option>
+                  </select>
+                </div>
+
                 <button class="btn btn-primary" style="width:100%;padding:0.875rem" id="checkoutBtn"
                   onclick="processCheckout()">
                   Finalize Transaction
@@ -854,19 +944,197 @@
     </div>
   </div>
 
+  <!-- INVENTORY ADJUST MODAL -->
+  <div id="inventoryAdjustModal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:100;align-items:center;justify-content:center">
+    <div
+      style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:440px;margin:auto">
+      <h3 style="margin-bottom:var(--space-lg)">Adjust Stock</h3>
+      <div style="margin-bottom:var(--space-md)">
+        <strong>Item:</strong> <span id="adjItemName"></span> <br>
+        <strong>Current Stock:</strong> <span id="adjCurrentQty"></span>
+      </div>
+      <form id="adjForm" onsubmit="InventoryOps.submitAdjust(event)">
+        <input type="hidden" id="adjItemId">
+        <div class="form-group">
+          <label>Adjustment Type</label>
+          <select id="adjType" class="form-control" required onchange="InventoryOps.toggleAdjustDirection(this.value)">
+            <option value="in">Stock In</option>
+            <option value="out">Stock Out</option>
+            <option value="damage">Mark Damaged</option>
+            <option value="adjustment">Manual Adjustment</option>
+          </select>
+        </div>
+        <div class="form-group" id="adjDirectionGroup" style="display:none">
+          <label>Direction</label>
+          <select id="adjDirection" class="form-control">
+            <option value="+">Add (+)</option>
+            <option value="-">Subtract (-)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantity</label>
+          <input type="number" id="adjQty" min="1" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Notes (Optional)</label>
+          <input type="text" id="adjNotes" class="form-control">
+        </div>
+        <div class="d-flex gap-md justify-between" style="margin-top:var(--space-md)">
+          <button type="button" class="btn btn-outline" onclick="InventoryOps.closeAdjustModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Adjustment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRANSFER REQUEST MODAL -->
+  <div id="transferModal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:999;align-items:center;justify-content:center">
+    <div
+      style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:500px;margin:auto">
+      <h3 style="margin-bottom:var(--space-lg)">Request Stock Transfer</h3>
+      <form id="transferForm" onsubmit="TransferOps.submitTransfer(event)">
+
+        <div class="form-group d-flex gap-md" style="margin-bottom:var(--space-md)">
+          <div style="flex:1">
+            <label>From Branch</label>
+            <select id="transferFromBranch" class="form-control" required></select>
+          </div>
+          <div style="flex:1">
+            <label>To Branch</label>
+            <select id="transferToBranch" class="form-control" required></select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:var(--space-md)">
+          <label>Search Item in Source Branch</label>
+          <input type="text" id="transferItemSearch" class="form-control" placeholder="Type item name or SKU..."
+            autocomplete="off" onkeyup="TransferOps.searchInventoryForTransfer()">
+          <input type="hidden" id="transferItemId" required>
+          <div id="transferItemResults"
+            style="background:var(--bg-primary);max-height:150px;overflow-y:auto;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:var(--space-lg)">
+          <label>Quantity to Transfer <span id="transferStockHint"
+              style="color:var(--text-secondary);font-size:0.75rem;display:none;margin-left:8px;font-weight:600"></span></label>
+          <input type="number" id="transferQty" min="1" class="form-control" required>
+        </div>
+
+        <div class="d-flex gap-md justify-between" style="margin-top:var(--space-lg)">
+          <button type="button" class="btn btn-outline" onclick="TransferOps.closeTransferModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TRANSFER ACTION CONFIRM MODAL -->
+  <div id="transferConfirmModal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center">
+    <div
+      style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:400px;margin:auto;text-align:center">
+      <div
+        style="width:48px;height:48px;border-radius:50%;background:rgba(var(--primary-rgb),0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;margin:0 auto var(--space-md)">
+        <i data-lucide="help-circle" style="width:24px;height:24px"></i>
+      </div>
+      <h3 style="margin-bottom:var(--space-sm)">Confirm Action</h3>
+      <p id="transferConfirmText" style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:var(--space-lg)">
+        Are you sure you want to proceed?</p>
+
+      <div class="d-flex gap-md justify-center">
+        <button type="button" class="btn btn-outline" style="min-width:100px"
+          onclick="TransferOps.closeConfirmModal()">Cancel</button>
+        <button type="button" id="transferConfirmBtn" class="btn btn-primary" style="min-width:100px">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECEIPT MODAL -->
+  <div id="receiptModal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
+    <div
+      style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:450px;margin:auto">
+      <div
+        style="text-align:center;margin-bottom:var(--space-lg);border-bottom:2px dashed var(--border);padding-bottom:1rem">
+        <h2 style="font-weight:700;margin-bottom:0.5rem">Boutique Store</h2>
+        <p style="color:var(--text-secondary);font-size:0.875rem">Receipt <span id="rctNumber"
+            style="font-weight:600"></span></p>
+        <p style="color:var(--text-secondary);font-size:0.875rem" id="rctDate"></p>
+      </div>
+
+      <div id="rctItems" style="margin-bottom:var(--space-lg);min-height:100px;max-height:250px;overflow-y:auto"></div>
+
+      <div style="border-top:2px dashed var(--border);padding-top:1rem;margin-bottom:var(--space-lg)">
+        <div class="d-flex justify-between" style="margin-bottom:0.5rem;font-size:0.875rem">
+          <span style="color:var(--text-secondary)">Subtotal</span>
+          <span id="rctSubtotal"></span>
+        </div>
+        <div class="d-flex justify-between" style="margin-bottom:0.5rem;font-size:0.875rem">
+          <span style="color:var(--text-secondary)">Discount</span>
+          <span id="rctDiscount"></span>
+        </div>
+        <div class="d-flex justify-between" style="font-weight:700;font-size:1.25rem;margin-top:0.5rem">
+          <span>Total</span>
+          <span id="rctTotal"></span>
+        </div>
+      </div>
+
+      <div class="d-flex gap-md">
+        <button type="button" class="btn btn-outline" style="flex:1"
+          onclick="document.getElementById('receiptModal').style.display='none'">Close</button>
+        <button type="button" class="btn btn-primary" style="flex:1" onclick="window.print()">Print Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DISCOUNT MODAL -->
+  <div id="discountModal"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
+    <div
+      style="background:var(--bg-primary);border-radius:var(--radius-lg);padding:var(--space-xl);width:100%;max-width:400px;margin:auto">
+      <h3 style="margin-bottom:var(--space-lg);font-weight:700">Apply Discount</h3>
+      <form id="discountForm" onsubmit="submitDiscount(event)">
+        <div class="form-group" style="margin-bottom:var(--space-md)">
+          <label style="font-size:0.875rem;margin-bottom:0.5rem;display:block">Discount Type</label>
+          <select id="discountType" class="form-control" style="width:100%">
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount ($)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:var(--space-lg)">
+          <label style="font-size:0.875rem;margin-bottom:0.5rem;display:block">Value</label>
+          <input type="number" id="discountValue" class="form-control" min="0" step="0.01"
+            placeholder="Enter discount value" required>
+        </div>
+        <div class="d-flex gap-md">
+          <button type="button" class="btn btn-outline" style="flex:1"
+            onclick="document.getElementById('discountModal').style.display='none'">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex:1">Apply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Chart.js via CDN (UMD format for standalone browser script tags) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
 
   <script src="/js/toast.js"></script>
   <script src="/js/mockData.js?v=2"></script>
   <script src="/js/api.js?v=2"></script>
+  <script src="/js/api-inventory.js?v=1"></script>
+  <script src="/js/api-transfers.js?v=1"></script>
   <script src="/js/api-users.js?v=2"></script>
   <script src="/js/api-roles.js?v=2"></script>
   <script src="/js/api-reports.js?v=2"></script>
   <script src="/js/api-dashboard.js?v=2"></script>
   <script src="/js/api-charts.js?v=2"></script>
   <script src="/js/charts-ui.js?v=2"></script>
-  <script src="/js/dashboard.js?v=3"></script>
+  <script src="/js/dashboard.js?v=9"></script>
+  <script src="/js/inventory.js?v=7"></script>
+  <script src="/js/transfers.js?v=3"></script>
   <script src="/js/products.js?v=2"></script>
 
   <!-- TEST CHART (removed) -->

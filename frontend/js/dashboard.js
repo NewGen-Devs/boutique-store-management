@@ -27,8 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
   }
 
-  setupMobileMenu();
-
   // Verify auth with backend silently (no redirect loop on failure)
   fetch('/api/user', {
     method: 'GET',
@@ -89,17 +87,8 @@ function setupRoleUI(role) {
   if (role === 1 || role === 'manager') {
     userNameEl.textContent = localName || 'Admin';
     userRoleEl.textContent = 'Manager';
-
-    // Update Welcome Message with Translation
-    const welcomeTitle = document.querySelector('.welcome-text h1');
-    if (welcomeTitle) {
-      const userName = localStorage.getItem('userName') || 'User';
-      const welcomePrefix = window.i18n && window.I18N_DATA[window.i18n.currentLang]?.welcome_title || "Welcome back";
-      welcomeTitle.textContent = `${welcomePrefix}, ${userName.split(' ')[0]}`;
-    }
     navItems = [
       { id: 'overview', icon: 'layout-dashboard', label: 'Overview' },
-      { id: 'products', icon: 'tag', label: 'Products' },
       { id: 'branches', icon: 'store', label: 'Branches' },
       { id: 'users', icon: 'users', label: 'Users' },
       { id: 'inventory', icon: 'package-search', label: 'Inventory' },
@@ -160,29 +149,19 @@ function setupRoleUI(role) {
   const initials = finalName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   userAvatarEl.textContent = initials;
 
-  // Preserve current view if possible
-  const currentActiveItem = document.querySelector('.nav-item.active');
-  const activeId = currentActiveItem ? currentActiveItem.id.replace('nav-', '') : defaultView;
-
   // Render Nav
-  sidebarNav.innerHTML = ''; // Clear first to avoid duplication
   navItems.forEach(item => {
     const btn = document.createElement('div');
     btn.className = 'nav-item';
     btn.id = `nav-${item.id}`;
-
-    // Get translated label if available
-    const labelKey = `db_${item.id}`;
-    const displayLabel = (window.i18n && window.I18N_DATA[window.i18n.currentLang][labelKey]) || item.label;
-
-    btn.innerHTML = `<i data-lucide="${item.icon}" class="nav-icon"></i> <span>${displayLabel}</span>`;
+    btn.innerHTML = `<i data-lucide="${item.icon}" class="nav-icon"></i> <span>${item.label}</span>`;
     btn.onclick = () => switchView(item.id);
     sidebarNav.appendChild(btn);
   });
 
   lucide.createIcons();
   renderInventoryTable();
-  switchView(activeId);
+  switchView(defaultView);
 }
 
 // ——— View Switching ———
@@ -303,93 +282,22 @@ function createItem() {
 }
 
 // ——— Sales ———
-async function renderRecentSales() {
-  const result = await DashboardAPI.getManagerDashboard();
-  if (!result?.success) {
-    console.warn('Failed to load manager dashboard:', result?.message);
-    return;
-  }
-
-  const d = result.data;
-  const kpis = d.kpis;
-
-  // KPI Widgets
-  const fmtCur = (v) => '$' + (parseFloat(v) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  document.getElementById('ovTodayRevenue').textContent = fmtCur(kpis.today_revenue);
-  document.getElementById('ovMonthRevenue').textContent = fmtCur(kpis.month_revenue);
-  document.getElementById('ovTotalProducts').textContent = parseInt(kpis.total_products || 0).toLocaleString();
-  document.getElementById('ovActiveBranches').textContent = kpis.active_branches || 0;
-  document.getElementById('ovActiveUsers').textContent = kpis.active_users || 0;
-  document.getElementById('ovTodayTxns').textContent = kpis.today_transactions || 0;
-
-  // Render Sparklines (using mock trend data for visual impact)
-  if (window.renderSparkline) {
-    renderSparkline('ovTodayRevenueSpark', [12, 18, 15, 25, 22, 30, 28], '#fa5400');
-    renderSparkline('ovMonthRevenueSpark', [450, 480, 460, 520, 500, 550, 530], '#fa5400');
-    renderSparkline('ovTodayTxnsSpark', [5, 8, 7, 12, 10, 15, 14], '#fa5400');
-  }
-
-  // Top Sellers
-  const sellerBody = document.querySelector('#ovTopSellersTable tbody');
-  if (d.top_sellers && d.top_sellers.length > 0) {
-    sellerBody.innerHTML = d.top_sellers.map(s => `
-      <tr>
-        <td>${s.first_name} ${s.last_name}</td>
-        <td>${s.sale_count}</td>
-        <td>${fmtCur(s.total_revenue)}</td>
-      </tr>
-    `).join('');
-  } else {
-    sellerBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No sales this month</td></tr>';
-  }
-
-  // Branch Revenue
-  const branchBody = document.querySelector('#ovBranchRevenueTable tbody');
-  if (d.branch_revenue && d.branch_revenue.length > 0) {
-    branchBody.innerHTML = d.branch_revenue.map(b => `
-      <tr>
-        <td>${b.branch_name}</td>
-        <td>${b.transactions}</td>
-        <td>${fmtCur(b.revenue)}</td>
-      </tr>
-    `).join('');
-  } else {
-    branchBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No branch data</td></tr>';
-  }
-
-  // Low Stock Alerts
-  const lowStockContainer = document.getElementById('ovLowStockContainer');
-  if (d.low_stock_alerts && d.low_stock_alerts.length > 0) {
-    lowStockContainer.innerHTML = d.low_stock_alerts.map(item => `
-      <div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
-        <span style="font-weight:600;color:var(--warning)">${item.name} <span style="font-weight:400;color:var(--text-secondary)">(${item.sku})</span></span>
-        <span style="font-size:0.8rem">Stock: <strong>${item.current_stock}</strong> / Min: ${item.reorder_level}</span>
-      </div>
-    `).join('');
-  } else {
-    lowStockContainer.innerHTML = '<p style="color:var(--success);font-size:0.85rem">✓ All items are well-stocked!</p>';
-  }
-
-  // Recent Transactions
+function renderRecentSales() {
   const tbody = document.querySelector('#recentSalesTable tbody');
   if (!tbody) return;
-  if (d.recent_transactions && d.recent_transactions.length > 0) {
-    tbody.innerHTML = d.recent_transactions.map(sale => {
-      const date = new Date(sale.created_at).toLocaleDateString();
-      return `
-        <tr>
-          <td style="color:var(--text-secondary)">${date}</td>
-          <td>${sale.transaction_number}</td>
-          <td>${sale.seller_first || ''} ${sale.seller_last || ''}</td>
-          <td>${sale.branch_name || '—'}</td>
-          <td style="font-weight:700">${fmtCur(sale.final_amount)}</td>
-        </tr>
-      `;
-    }).join('');
-  } else {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">No recent transactions</td></tr>';
-  }
+  tbody.innerHTML = '';
+
+  window.MOCK_DATA.recentSales.forEach(sale => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-secondary)">${sale.date}</td>
+      <td>${sale.id}</td>
+      <td>${sale.seller}</td>
+      <td>${sale.branch}</td>
+      <td style="font-weight:700">$${sale.total.toFixed(2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 // ——— POS ———
@@ -469,8 +377,8 @@ function removeFromCart(index) {
 }
 
 function processCheckout() {
-  if (cart.length === 0) return Toast.error('Cart is empty.');
-  Toast.success(`Payment processed! Total: ${document.getElementById('cartTotal').textContent}`, 'Checkout Success');
+  if (cart.length === 0) return alert('Cart is empty.');
+  alert(`Payment processed! Total: ${document.getElementById('cartTotal').textContent}`);
   cart = [];
   updateCartUI();
 }
@@ -489,7 +397,7 @@ async function renderBranches() {
     });
     const result = await response.json();
     const branches = result.branches || [];
-
+    
     branches.forEach((b, i) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -538,57 +446,36 @@ async function submitBranchForm(e) {
         closeBranchForm();
         renderBranches();
         populateBranchDropdown();
-        Toast.success('Branch added successfully!', 'Branch Created');
       } else {
-        Toast.error(result.message || 'Failed to create branch');
+        alert(result.message || 'Failed to create branch');
       }
     } catch (error) {
       console.error(error);
-      Toast.error('Error connecting to server');
+      alert('Error connecting to server');
     }
   }
 }
 
-let branchToDeleteId = null;
-
-function closeDeleteConfirmModal() {
-  const modal = document.getElementById('deleteConfirmModal');
-  if (modal) modal.style.display = 'none';
-  branchToDeleteId = null;
-}
-
-function deleteBranch(branchId) {
-  branchToDeleteId = branchId;
-  const modal = document.getElementById('deleteConfirmModal');
-  if (modal) {
-    document.getElementById('confirmDeleteBtn').onclick = executeDeleteBranch;
-    modal.style.display = 'flex';
-  }
-}
-
-async function executeDeleteBranch() {
-  if (!branchToDeleteId) return;
-  try {
-    const response = await fetch(`/api/branches/${branchToDeleteId}`, {
-      method: 'DELETE',
-      headers: {
-        'X-CSRF-Token': localStorage.getItem('csrfToken') || ''
+async function deleteBranch(branchId) {
+  if (confirm('Delete this branch?')) {
+    try {
+      const response = await fetch(`/api/branches/${branchId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-CSRF-Token': localStorage.getItem('csrfToken') || ''
+        }
+      });
+      const result = await response.json();
+      if (result.success) {
+        renderBranches();
+        populateBranchDropdown();
+      } else {
+        alert(result.message || 'Failed to delete branch');
       }
-    });
-    const result = await response.json();
-    if (result.success) {
-      renderBranches();
-      populateBranchDropdown();
-      closeDeleteConfirmModal();
-      Toast.success('Branch deleted permanently.', 'Branch Removed');
-    } else {
-      Toast.error(result.message || 'Failed to delete branch');
-      closeDeleteConfirmModal();
+    } catch (error) {
+      console.error('Error deleting branch:', error);
+      alert('Error deleting branch');
     }
-  } catch (error) {
-    console.error('Error deleting branch:', error);
-    Toast.error('Error deleting branch');
-    closeDeleteConfirmModal();
   }
 }
 
@@ -607,8 +494,7 @@ async function renderUsers() {
 
   const search = document.getElementById('userSearchInput')?.value || '';
   const role = document.getElementById('userRoleFilter')?.value || '';
-  const statusEl = document.getElementById('userStatusFilter');
-  const status = statusEl ? statusEl.value : '';
+  const status = document.getElementById('userStatusFilter')?.value || 'active';
 
   const result = await UsersAPI.list(1, 50, search, role, status);
   if (!result || !result.success) {
@@ -694,7 +580,7 @@ async function populateRoleDropdowns() {
 async function populateBranchDropdown() {
   const branchSelect = document.getElementById('userBranch');
   if (!branchSelect) return;
-
+  
   // Clear existing options except the first one
   while (branchSelect.options.length > 1) {
     branchSelect.remove(1);
@@ -765,7 +651,7 @@ function openUserForm(userId) {
 async function loadUserForEdit(userId) {
   const result = await UsersAPI.get(userId);
   if (!result || !result.success || !result.user) {
-    Toast.error('Failed to load user data.');
+    alert('Failed to load user data.');
     return;
   }
 
@@ -810,7 +696,7 @@ async function submitUserForm(e) {
     result = await UsersAPI.update(editingUserId, userData);
   } else {
     if (!password) {
-      Toast.warning('Password is required for new users.');
+      alert('Password is required for new users.');
       return;
     }
     result = await UsersAPI.create(userData);
@@ -821,17 +707,7 @@ async function submitUserForm(e) {
   if (result.success) {
     closeUserForm();
     renderUsers();
-    Toast.success(editingUserId ? 'User updated successfully.' : 'User created successfully.', 'User Saved');
   } else {
-    // If it's a password validation error, redirect to policy page as requested
-    const isPasswordError = result.errors && result.errors.password ||
-      (result.message && result.message.toLowerCase().includes('password'));
-
-    if (isPasswordError) {
-      window.location.href = '/password-policy';
-      return;
-    }
-
     const errorMsg = result.errors
       ? Object.values(result.errors).join('\n')
       : result.message || 'Failed to save user.';
@@ -1027,7 +903,7 @@ async function submitRoleForm(e) {
 
   if (result.success) {
     closeRoleForm();
-    renderRoles()
+    renderRoles();
   } else {
     const errorMsg = result.errors
       ? Object.values(result.errors).join('\n')
@@ -1051,109 +927,21 @@ async function deleteRole(roleId) {
 }
 
 // ——— Reports ———
+function generateReport(type) {
+  const log = document.getElementById('reportLog');
+  const title = document.getElementById('reportTitle');
 
-function formatCurrency(val) {
-  const num = parseFloat(val) || 0;
-  return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function setReportRange(preset) {
-  const startEl = document.getElementById('reportStartDate');
-  const endEl = document.getElementById('reportEndDate');
-  const today = new Date();
-  endEl.value = today.toISOString().split('T')[0];
-
-  if (preset === 'today') {
-    startEl.value = endEl.value;
-  } else if (preset === 'week') {
-    const weekAgo = new Date(today);
-    weekAgo.setDate(today.getDate() - 7);
-    startEl.value = weekAgo.toISOString().split('T')[0];
-  } else if (preset === 'month') {
-    startEl.value = today.toISOString().slice(0, 8) + '01';
-  }
-
-  loadReports();
-}
-
-async function loadReports() {
-  const startDate = document.getElementById('reportStartDate')?.value || '';
-  const endDate = document.getElementById('reportEndDate')?.value || '';
-
-  // Run all report API calls in parallel
-  const [summaryRes, branchRes, sellerRes, valuationRes, lowStockRes] = await Promise.all([
-    ReportsAPI.getSalesSummary(startDate, endDate),
-    ReportsAPI.getSalesByBranch(startDate, endDate),
-    ReportsAPI.getSalesBySeller(startDate, endDate),
-    ReportsAPI.getInventoryValuation(),
-    ReportsAPI.getLowStock()
-  ]);
-
-  // KPI Cards
-  if (summaryRes?.success) {
-    const d = summaryRes.data;
-    document.getElementById('kpiRevenue').textContent = formatCurrency(d.revenue);
-    document.getElementById('kpiTransactions').textContent = parseInt(d.total_transactions || 0).toLocaleString();
-    document.getElementById('kpiItemsSold').textContent = parseInt(d.total_items_sold || 0).toLocaleString();
-    document.getElementById('kpiProfit').textContent = formatCurrency(d.profit);
-  }
-
-  // Branch Table
-  const branchBody = document.querySelector('#reportBranchTable tbody');
-  if (branchRes?.success && branchRes.data.length > 0) {
-    branchBody.innerHTML = branchRes.data.map(b => `
-      <tr>
-        <td>${b.branch_name || '—'}</td>
-        <td>${parseInt(b.transactions || 0).toLocaleString()}</td>
-        <td>${formatCurrency(b.revenue)}</td>
-      </tr>
-    `).join('');
-  } else {
-    branchBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No branch data available for this period</td></tr>';
-  }
-
-  // Seller Table
-  const sellerBody = document.querySelector('#reportSellerTable tbody');
-  if (sellerRes?.success && sellerRes.data.length > 0) {
-    sellerBody.innerHTML = sellerRes.data.map(s => `
-      <tr>
-        <td>${s.first_name} ${s.last_name}</td>
-        <td>${parseInt(s.total_sales || 0).toLocaleString()}</td>
-        <td>${formatCurrency(s.revenue)}</td>
-      </tr>
-    `).join('');
-  } else {
-    sellerBody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted)">No seller data available for this period</td></tr>';
-  }
-
-  // Inventory Valuation Cards
-  if (valuationRes?.success) {
-    const v = valuationRes.data;
-    document.getElementById('invTotalItems').textContent = parseInt(v.total_products || 0).toLocaleString();
-    document.getElementById('invCostValue').textContent = formatCurrency(v.total_cost_value);
-    document.getElementById('invRetailValue').textContent = formatCurrency(v.total_retail_value);
-    document.getElementById('invPotentialProfit').textContent = formatCurrency(v.potential_profit);
-  }
-
-  // Low Stock Table
-  const lowStockBody = document.querySelector('#reportLowStockTable tbody');
-  if (lowStockRes?.success && lowStockRes.data.length > 0) {
-    lowStockBody.innerHTML = lowStockRes.data.map(item => `
-      <tr style="color:var(--warning)">
-        <td>${item.sku || '—'}</td>
-        <td>${item.name}</td>
-        <td>${item.category_name || '—'}</td>
-        <td><strong>${item.quantity}</strong></td>
-        <td>${item.reorder_level || '—'}</td>
-      </tr>
-    `).join('');
-  } else {
-    lowStockBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--success)">All items are well-stocked!</td></tr>';
-  }
-
-  // Render Charts concurrently
-  if (typeof renderDashboardCharts === 'function') {
-    renderDashboardCharts();
+  if (type === 'daily') {
+    title.textContent = 'Daily Sales — ' + new Date().toLocaleDateString();
+    log.textContent = JSON.stringify(window.MOCK_DATA.recentSales.slice(0, 2), null, 2);
+  } else if (type === 'weekly') {
+    title.textContent = 'Weekly Revenue';
+    log.textContent = 'Downtown: $24,500\nUptown: $18,200\n\nTop Seller: Sarah Connor';
+  } else if (type === 'inventory') {
+    title.textContent = 'Inventory Snapshot';
+    const fast = window.MOCK_DATA.inventory.filter(i => i.stock < 10);
+    const slow = window.MOCK_DATA.inventory.filter(i => i.stock >= 10);
+    log.textContent = 'LOW STOCK:\n' + JSON.stringify(fast, null, 2) + '\n\nHEALTHY:\n' + JSON.stringify(slow, null, 2);
   }
 }
 
@@ -1234,46 +1022,3 @@ function setupMobileMenu() {
   openBtn.onclick = () => sidebar.classList.add('open');
   closeBtn.onclick = () => sidebar.classList.remove('open');
 }
-
-// ===================================
-// EXPORT HANDLERS (Phase 4.4)
-// ===================================
-
-window.exportCsv = function (type) {
-  let url = '';
-  if (type === 'sales') {
-    const start = document.getElementById('reportStartDate')?.value || '';
-    const end = document.getElementById('reportEndDate')?.value || '';
-    url = `/api/export/csv/sales?start_date=${start}&end_date=${end}`;
-  } else if (type === 'inventory') {
-    url = '/api/export/csv/inventory';
-  } else if (type === 'logs') {
-    url = '/api/export/csv/activity-logs';
-  }
-
-  if (url) window.open(url, '_blank');
-};
-
-// Handle Language Change for dynamic parts
-window.addEventListener('languageChanged', () => {
-  const userRole = localStorage.getItem('userRole');
-  if (userRole) {
-    const roleInt = parseInt(userRole);
-    setupRoleUI(isNaN(roleInt) ? userRole : roleInt);
-  }
-});
-
-window.exportPdf = function (type, id = null) {
-  let url = '';
-  if (type === 'receipt' && id) {
-    url = `/api/export/pdf/receipts/${id}`;
-  } else if (type === 'sales') {
-    const start = document.getElementById('reportStartDate')?.value || '';
-    const end = document.getElementById('reportEndDate')?.value || '';
-    url = `/api/export/pdf/sales?start_date=${start}&end_date=${end}`;
-  } else if (type === 'custom') {
-    url = '/api/export/pdf/custom?type=custom';
-  }
-
-  if (url) window.open(url, '_blank');
-};

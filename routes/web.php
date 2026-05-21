@@ -131,16 +131,32 @@ return function (Router $router) {
     $router->get('/api/dashboard/seller', 'Api\DashboardController@seller', 'api.dashboard.seller');
 
     // ============================================
+    // API ROUTES - INVENTORY MANAGEMENT
+    // ============================================
+    $router->get('/api/inventory', 'Api\InventoryController@index', 'api.inventory.index');
+    $router->get('/api/inventory/low-stock', 'Api\InventoryController@lowStock', 'api.inventory.low_stock');
+    $router->get('/api/inventory/history', 'Api\InventoryController@history', 'api.inventory.history');
+    $router->post('/api/inventory/adjust', 'Api\InventoryController@adjust', 'api.inventory.adjust');
+
+    // ============================================
+    // API ROUTES - TRANSFER MANAGEMENT
+    // ============================================
+    $router->get('/api/transfers', 'Api\TransferController@index', 'api.transfers.index');
+    $router->post('/api/transfers', 'Api\TransferController@store', 'api.transfers.store');
+    $router->put('/api/transfers/{id}/status', 'Api\TransferController@updateStatus', 'api.transfers.updateStatus');
+
+    // ============================================
+    // API ROUTES - SALES MANAGEMENT (POS)
+    // ============================================
+    $router->get('/api/sales', 'Api\SalesController@index', 'api.sales.index');
+    $router->post('/api/sales', 'Api\SalesController@store', 'api.sales.store');
+    $router->get('/api/sales/{id}', 'Api\SalesController@show', 'api.sales.show');
+
+    // ============================================
     // API ROUTES (Optional - JSON responses) - DISABLED
     // ============================================
     /*
     $router->group(['prefix' => '/api/v1'], function ($router) {
-
-        // Inventory API
-        $router->get('/inventory', 'Api\InventoryController@index', 'api.inventory.index');
-        $router->get('/inventory/{id}', 'Api\InventoryController@show', 'api.inventory.show');
-        $router->post('/inventory', 'Api\InventoryController@store', 'api.inventory.store');
-        $router->put('/inventory/{id}', 'Api\InventoryController@update', 'api.inventory.update');
 
         // Sales API
         $router->get('/sales', 'Api\SalesController@index', 'api.sales.index');
